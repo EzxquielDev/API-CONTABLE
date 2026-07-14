@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Reporte de Ventas — Bicimania</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; background: #f5f6f8; color: #222; }
+  h1 { font-size: 22px; }
+  .panel { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+  label { font-size: 13px; color: #555; display: block; margin-bottom: 4px; }
+  input[type="date"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+  .filtros { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; }
+  button { padding: 9px 18px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
+  .btn-primario { background: #2F5597; color: white; }
+  .btn-secundario { background: #2e7d32; color: white; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .totales { display: flex; gap: 16px; flex-wrap: wrap; }
+  .tarjeta { flex: 1; min-width: 160px; background: #eef2f8; border-radius: 6px; padding: 14px; }
+  .tarjeta .valor { font-size: 20px; font-weight: bold; color: #2F5597; }
+  .tarjeta .etiqueta { font-size: 12px; color: #666; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+  th { background: #2F5597; color: white; }
+  #estado { font-size: 13px; color: #888; margin-top: 8px; }
+  .error { color: #c62828; }
+</style>
+</head>
+<body>
+
+<h1>📊 Reporte de Ventas</h1>
+
+<div class="panel">
+  <div class="filtros">
+    <div>
+      <label for="desde">Desde</label>
+      <input type="date" id="desde">
+    </div>
+    <div>
+      <label for="hasta">Hasta</label>
+      <input type="date" id="hasta">
+    </div>
+    <button class="btn-primario" id="btnGenerar" onclick="generarReporte()">Generar reporte</button>
+    <button class="btn-secundario" id="btnExcel" onclick="descargarExcel()" disabled>Descargar Excel</button>
+    <button class="btn-primario" id="btnProductos" onclick="verProductosMasVendidos()">Productos más vendidos</button>
+  </div>
+  <div id="estado"></div>
+</div>
+
+<div class="panel" id="panelTotales" style="display:none;">
+  <div class="totales">
+    <div class="tarjeta">
+      <div class="etiqueta">Total facturado (con IVA)</div>
+      <div class="valor" id="totalConIva">-</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta">Total ventas sin IVA</div>
+      <div class="valor" id="totalSinIva">-</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta">Total IVA</div>
+      <div class="valor" id="totalIva">-</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta"># Facturas</div>
+      <div class="valor" id="cantidadFacturas">-</div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panelDetalle" style="display:none;">
+  <table>
+    <thead>
+      <tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Sin IVA</th><th>IVA</th><th>Total</th><th>Estado</th></tr>
+    </thead>
+    <tbody id="cuerpoTabla"></tbody>
+  </table>
+</div>
+
+<div class="panel" id="panelProductos" style="display:none;">
+  <h2 style="font-size:16px;"> Productos más vendidos</h2>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Producto</th><th>Cantidad vendida</th><th>Total vendido</th></tr>
+    </thead>
+    <tbody id="cuerpoProductos"></tbody>
+  </table>
+</div>
+
+<script>
+  const API_KEY = "{{ api_key }}";
+
+  // Por defecto: primer día del mes actual hasta hoy
+  const hoy = new Date();
+  const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  document.getElementById("desde").value = primerDia.toISOString().slice(0, 10);
+  document.getElementById("hasta").value = hoy.toISOString().slice(0, 10);
+
+  function formatoMoneda(valor) {
+    return "$" + Number(valor).toLocaleString("es-SV", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  async function generarReporte() {
+    const desde = document.getElementById("desde").value;
+    const hasta = document.getElementById("hasta").value;
+    const estado = document.getElementById("estado");
+    const btn = document.getElementById("btnGenerar");
+
+    if (!desde || !hasta) {
+      estado.innerHTML = '<span class="error">Selecciona ambas fechas.</span>';
+      return;
+    }
+
+    btn.disabled = true;
+    estado.textContent = "Consultando Odoo...";
+
+    try {
+      const resp = await fetch(`/api/ventas/reporte?desde=${desde}&hasta=${hasta}`, {
+        headers: { "X-API-Key": API_KEY }
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        estado.innerHTML = `<span class="error">Error: ${data.error || "desconocido"}</span>`;
+        return;
+      }
+
+      document.getElementById("totalConIva").textContent = formatoMoneda(data.total_con_iva);
+      document.getElementById("totalSinIva").textContent = formatoMoneda(data.total_sin_iva);
+      document.getElementById("totalIva").textContent = formatoMoneda(data.total_iva);
+      document.getElementById("cantidadFacturas").textContent = data.cantidad_facturas;
+      document.getElementById("panelTotales").style.display = "block";
+
+      const cuerpo = document.getElementById("cuerpoTabla");
+      cuerpo.innerHTML = "";
+      data.facturas.forEach(f => {
+        const fila = document.createElement("tr");
+        fila.innerHTML = `
+          <td>${f.numero}</td>
+          <td>${f.cliente}</td>
+          <td>${f.fecha}</td>
+          <td>${formatoMoneda(f.subtotal_sin_iva)}</td>
+          <td>${formatoMoneda(f.iva)}</td>
+          <td>${formatoMoneda(f.total)}</td>
+          <td>${f.estado_pago}</td>`;
+        cuerpo.appendChild(fila);
+      });
+      document.getElementById("panelDetalle").style.display = "block";
+
+      document.getElementById("btnExcel").disabled = false;
+      estado.textContent = `Listo — ${data.cantidad_facturas} facturas encontradas.`;
+    } catch (e) {
+      estado.innerHTML = `<span class="error">Error de conexión: ${e.message}</span>`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function descargarExcel() {
+    const desde = document.getElementById("desde").value;
+    const hasta = document.getElementById("hasta").value;
+    // Como la descarga es una navegación normal del navegador (no fetch),
+    // pasamos la API key como query param para este endpoint específico.
+    window.location.href = `/api/ventas/reporte.xlsx?desde=${desde}&hasta=${hasta}&api_key=${API_KEY}`;
+  }
+
+  async function verProductosMasVendidos() {
+    const desde = document.getElementById("desde").value;
+    const hasta = document.getElementById("hasta").value;
+    const estado = document.getElementById("estado");
+    const btn = document.getElementById("btnProductos");
+
+    if (!desde || !hasta) {
+      estado.innerHTML = '<span class="error">Selecciona ambas fechas.</span>';
+      return;
+    }
+
+    btn.disabled = true;
+    estado.textContent = "Calculando productos más vendidos...";
+
+    try {
+      const resp = await fetch(`/api/ventas/productos-mas-vendidos?desde=${desde}&hasta=${hasta}&limite=20`, {
+        headers: { "X-API-Key": API_KEY }
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        estado.innerHTML = `<span class="error">Error: ${data.error || "desconocido"}</span>`;
+        return;
+      }
+
+      const cuerpo = document.getElementById("cuerpoProductos");
+      cuerpo.innerHTML = "";
+      data.productos.forEach((p, i) => {
+        const fila = document.createElement("tr");
+        fila.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${p.producto}</td>
+          <td>${p.cantidad}</td>
+          <td>${formatoMoneda(p.total_vendido)}</td>`;
+        cuerpo.appendChild(fila);
+      });
+      document.getElementById("panelProductos").style.display = "block";
+      estado.textContent = `Listo — ${data.productos.length} productos encontrados.`;
+    } catch (e) {
+      estado.innerHTML = `<span class="error">Error de conexión: ${e.message}</span>`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+</script>
+
+</body>
+</html>
