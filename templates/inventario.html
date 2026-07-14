@@ -31,8 +31,8 @@
         </label>
         <button type="submit">Consultar</button>
         <div class="selector-vista" aria-label="Tipo de vista">
-            <button type="button" class="boton-vista activo" data-vista="lista" aria-pressed="true">Lista</button>
-            <button type="button" class="boton-vista" data-vista="cuadricula" aria-pressed="false">Cuadros</button>
+            <button type="button" class="boton-vista" data-vista="lista" aria-pressed="false">Lista</button>
+            <button type="button" class="boton-vista activo" data-vista="cuadricula" aria-pressed="true">Cuadros</button>
         </div>
     </form>
 
@@ -42,8 +42,8 @@
         <p id="estado">{{ productos|length }} productos encontrados.</p>
         <section class="resumen-inventario">
             <article><span>Productos</span><strong>{{ resumen.cantidad_productos }}</strong></article>
-            <article><span>Existencia</span><strong>{{ "{:,.2f}".format(resumen.existencia_total) }}</strong></article>
-            <article><span>Disponible</span><strong>{{ "{:,.2f}".format(resumen.disponible_total) }}</strong></article>
+            <article><span>Existencia</span><strong>{{ "{:,.0f}".format(resumen.existencia_total) }}</strong></article>
+            <article><span>Disponible</span><strong>{{ "{:,.0f}".format(resumen.disponible_total) }}</strong></article>
             <article><span>Valor de inventario</span><strong>${{ "{:,.2f}".format(resumen.valor_inventario_total) }}</strong></article>
         </section>
 
@@ -56,13 +56,13 @@
                 <h2>Disponibilidad de inventario</h2>
                 <p>Distribución de las unidades existentes según su disponibilidad actual.</p>
                 <div class="leyenda-grafica">
-                    <span><i class="color-disponible"></i>Disponible <strong>{{ "{:,.2f}".format(resumen.disponible_total) }}</strong></span>
-                    <span><i class="color-reservado"></i>Reservado <strong>{{ "{:,.2f}".format(resumen.reservado_total) }}</strong></span>
+                    <span><i class="color-disponible"></i>Disponible <strong>{{ "{:,.0f}".format(resumen.disponible_total) }}</strong></span>
+                    <span><i class="color-reservado"></i>Reservado <strong>{{ "{:,.0f}".format(resumen.reservado_total) }}</strong></span>
                 </div>
             </div>
         </section>
 
-        <section class="tabla-contenedor vista-lista" id="tablaPanel">
+        <section class="tabla-contenedor vista-cuadricula" id="tablaPanel">
             <table>
                 <thead><tr><th>SKU</th><th>Producto</th><th>Categoría</th><th>Existencia</th><th>Reservado</th><th>Disponible</th><th>Costo</th><th>Valor</th></tr></thead>
                 <tbody>
@@ -71,9 +71,9 @@
                         <td data-label="SKU">{{ producto.sku }}</td>
                         <td data-label="Producto">{{ producto.producto }}</td>
                         <td data-label="Categoría">{{ producto.categoria }}</td>
-                        <td data-label="Existencia">{{ "{:,.2f}".format(producto.existencia) }}</td>
-                        <td data-label="Reservado">{{ "{:,.2f}".format(producto.reservado) }}</td>
-                        <td data-label="Disponible">{{ "{:,.2f}".format(producto.disponible) }}</td>
+                        <td data-label="Existencia">{{ "{:,.0f}".format(producto.existencia) }}</td>
+                        <td data-label="Reservado">{{ "{:,.0f}".format(producto.reservado) }}</td>
+                        <td data-label="Disponible">{{ "{:,.0f}".format(producto.disponible) }}</td>
                         <td data-label="Costo">${{ "{:,.2f}".format(producto.costo_unitario) }}</td>
                         <td data-label="Valor">${{ "{:,.2f}".format(producto.valor_inventario) }}</td>
                     </tr>
