@@ -11,6 +11,40 @@
     color: var(--texto);
 }
 
+.cargando-consulta {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, .88);
+    backdrop-filter: blur(2px);
+}
+
+.cargando-consulta[hidden] { display: none; }
+
+.cargando-contenido {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    padding: 24px 30px;
+    color: var(--texto);
+    text-align: center;
+}
+
+.cargando-contenido strong { font-size: 1.1rem; }
+.cargando-contenido span:last-child { color: #778390; font-size: .92rem; }
+.indicador-carga {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #dce3e9;
+    border-top-color: var(--azul);
+    border-radius: 50%;
+    animation: girar-carga .75s linear infinite;
+}
+
+@keyframes girar-carga { to { transform: rotate(360deg); } }
+
 .inventario-encabezado {
     display: flex;
     justify-content: space-between;

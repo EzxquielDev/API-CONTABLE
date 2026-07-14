@@ -4,6 +4,13 @@
 
 {% block content %}
 <section class="inventario-pagina">
+    <div class="cargando-consulta" id="cargandoConsulta" hidden role="status" aria-live="polite">
+        <div class="cargando-contenido">
+            <span class="indicador-carga" aria-hidden="true"></span>
+            <strong>Consultando inventario…</strong>
+            <span>Estamos obteniendo los datos desde Odoo.</span>
+        </div>
+    </div>
     <header class="inventario-encabezado">
         <div>
             <h1>Inventario</h1>
@@ -15,7 +22,7 @@
         </div>
     </header>
 
-    <form class="panel filtros-inventario" method="get" action="{{ url_for('inventario') }}">
+    <form class="panel filtros-inventario" id="formularioInventario" method="get" action="{{ url_for('inventario') }}">
         <label for="almacen">Almacén
             <select id="almacen" name="almacen_id">
                 <option value="">Todos los almacenes</option>
@@ -87,6 +94,12 @@
 </section>
 
 <script>
+  const cargando = document.getElementById('cargandoConsulta');
+  const mostrarCarga = () => { cargando.hidden = false; };
+  document.getElementById('formularioInventario').addEventListener('submit', mostrarCarga);
+  document.querySelectorAll('.acciones-inventario a').forEach(enlace => enlace.addEventListener('click', mostrarCarga));
+  window.addEventListener('pageshow', () => { cargando.hidden = true; });
+
   document.querySelectorAll('.boton-vista').forEach(boton => {
     boton.addEventListener('click', () => {
       const vista = boton.dataset.vista;
