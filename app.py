@@ -1,11 +1,20 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from blueprints.dashboard import dashboard_bp
+from blueprints.ventas import ventas_bp
+from blueprints.inventario import inventario_bp
+
+# Rutas de Inventario
+from Rutas.inventario import Invetario_ruta
+
+
+# Ruras no puestas
+from config import Config
 
 app = Flask(__name__)
 app.register_blueprint(dashboard_bp)
+app.register_blueprint(ventas_bp)
+app.register_blueprint(inventario_bp)
 
-#
-from Rutas.inventario import Invetario_ruta
 
 
 @app.route("/")
@@ -25,6 +34,10 @@ def api_info():
             "GET /api/dashboard/gastos-pendientes",
             "GET /api/ventas/reporte?desde=YYYY-MM-DD&hasta=YYYY-MM-DD",
             "GET /api/ventas/reporte.xlsx?desde=YYYY-MM-DD&hasta=YYYY-MM-DD",
+            "GET /api/inventario/resumen?almacen_id=ID",
+            "GET /api/inventario/reporte?almacen_id=ID&producto=TEXTO",
+            "GET /api/inventario/reporte.csv",
+            "GET /api/inventario/reporte.xlsx",
         ],
     })
 

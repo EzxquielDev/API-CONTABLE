@@ -32,6 +32,11 @@ Todos requieren el header `X-API-Key` con el valor que pusiste en `FLASK_API_KEY
 | `GET /api/dashboard/facturas-pendientes` | JSON de facturas de cliente sin cobrar |
 | `GET /api/dashboard/facturas-pendientes.csv` | Mismo dato, en CSV descargable |
 | `GET /api/dashboard/gastos-pendientes` | JSON de facturas de proveedor sin pagar |
+| `GET /api/inventario/almacenes` | Almacenes disponibles para filtrar el inventario |
+| `GET /api/inventario/resumen?almacen_id=ID` | Totales de existencias, reservas y valor actual |
+| `GET /api/inventario/reporte?almacen_id=ID&producto=TEXTO` | Existencias actuales por producto |
+| `GET /api/inventario/reporte.csv` | Reporte completo en CSV |
+| `GET /api/inventario/reporte.xlsx` | Reporte completo en Excel |
 
 Prueba rápida con PowerShell:
 

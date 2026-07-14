@@ -1,42 +1,104 @@
 {% extends "layout.html" %}
 
-{% block title %}Página de Inicio - Mi Sitio{% endblock %}
+{% block title %}Inventario{% endblock %}
 
 {% block content %}
+<section class="inventario-pagina">
+    <header class="inventario-encabezado">
+        <div>
+            <h1>Inventario</h1>
+            <p>Existencias actuales en las ubicaciones internas de Odoo.</p>
+        </div>
+        <div class="acciones-inventario">
+            <a href="{{ url_for('inventario.reporte_csv', almacen_id=almacen_id, producto=producto_filtro, api_key=api_key) }}">Descargar CSV</a>
+            <a class="accion-principal" href="{{ url_for('inventario.reporte_xlsx', almacen_id=almacen_id, producto=producto_filtro, api_key=api_key) }}">Descargar Excel</a>
+        </div>
+    </header>
 
-<menu class="MenuInventario">
-    <ul>
-        <li><a href="">Generar Reporte CVS</a></li>
-        <li><a href="">Generar Reporte Excel</a></li>
-    </ul>
-</menu>
+    <form class="panel filtros-inventario" method="get" action="{{ url_for('inventario') }}">
+        <label for="almacen">Almacén
+            <select id="almacen" name="almacen_id">
+                <option value="">Todos los almacenes</option>
+                {% for almacen in almacenes %}
+                    <option value="{{ almacen.id }}" {% if almacen.id == almacen_id %}selected{% endif %}>
+                        {% if almacen.codigo %}{{ almacen.codigo }} — {% endif %}{{ almacen.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+        <label for="producto">Producto o SKU
+            <input id="producto" name="producto" type="search" value="{{ producto_filtro }}" placeholder="Ej. bicicleta o SKU-001">
+        </label>
+        <button type="submit">Consultar</button>
+        <div class="selector-vista" aria-label="Tipo de vista">
+            <button type="button" class="boton-vista activo" data-vista="lista" aria-pressed="true">Lista</button>
+            <button type="button" class="boton-vista" data-vista="cuadricula" aria-pressed="false">Cuadros</button>
+        </div>
+    </form>
 
+    {% if error %}
+        <p id="estado" class="error-inventario">No se pudo consultar Odoo: {{ error }}</p>
+    {% elif resumen %}
+        <p id="estado">{{ productos|length }} productos encontrados.</p>
+        <section class="resumen-inventario">
+            <article><span>Productos</span><strong>{{ resumen.cantidad_productos }}</strong></article>
+            <article><span>Existencia</span><strong>{{ "{:,.2f}".format(resumen.existencia_total) }}</strong></article>
+            <article><span>Disponible</span><strong>{{ "{:,.2f}".format(resumen.disponible_total) }}</strong></article>
+            <article><span>Valor de inventario</span><strong>${{ "{:,.2f}".format(resumen.valor_inventario_total) }}</strong></article>
+        </section>
 
-    <section class="Cards_Inventori_Container">
-        <div class="Card_Inventario">
-            <div class="descargas">
-                <a class="EXCELUNO" href="">
-                <img src="{{ url_for('static', filename='iconos/excel.png') }}" alt="BICI MONTAÑA XD">
-             </a>
+        {% set porcentaje_disponible = (resumen.disponible_total / resumen.existencia_total * 100) if resumen.existencia_total > 0 else 0 %}
+        <section class="panel grafica-inventario">
+            <div class="grafica-dona" style="--porcentaje-disponible: {{ porcentaje_disponible }}%" role="img" aria-label="{{ '%.1f'|format(porcentaje_disponible) }} por ciento disponible">
+                <div class="centro-grafica"><strong>{{ "%.0f"|format(porcentaje_disponible) }}%</strong><span>disponible</span></div>
             </div>
-             
-            <div class="Info_Inventario">
-                <div>
-                    <h1>BICI MONTAÑA XD</h1>
-                    <span class="desp">Lorem ipsum dolor, sit amet consectetur adipisicing elit. Minus eaque deserunt nihil id molestiae dignissimos illum voluptatem illo, eius iste perferendis ullam necessitatibus aspernatur eum dolorem ad earum fugiat numquam?
-                    </span>
-                </div>
-                <div></div>
-                <div class="Estadisticas_Inventario">
-                    <div class="Iz" >
-                        <span>Precio Total</span>
-                        <span>3,000,000.00</span>
-                    </div>
-                    <div class="Der">
-                        <span>STOCK</span>
-                        <span>3,000</span>
-                    </div>
+            <div>
+                <h2>Disponibilidad de inventario</h2>
+                <p>Distribución de las unidades existentes según su disponibilidad actual.</p>
+                <div class="leyenda-grafica">
+                    <span><i class="color-disponible"></i>Disponible <strong>{{ "{:,.2f}".format(resumen.disponible_total) }}</strong></span>
+                    <span><i class="color-reservado"></i>Reservado <strong>{{ "{:,.2f}".format(resumen.reservado_total) }}</strong></span>
                 </div>
             </div>
-    </section>
+        </section>
+
+        <section class="tabla-contenedor vista-lista" id="tablaPanel">
+            <table>
+                <thead><tr><th>SKU</th><th>Producto</th><th>Categoría</th><th>Existencia</th><th>Reservado</th><th>Disponible</th><th>Costo</th><th>Valor</th></tr></thead>
+                <tbody>
+                    {% for producto in productos %}
+                    <tr>
+                        <td data-label="SKU">{{ producto.sku }}</td>
+                        <td data-label="Producto">{{ producto.producto }}</td>
+                        <td data-label="Categoría">{{ producto.categoria }}</td>
+                        <td data-label="Existencia">{{ "{:,.2f}".format(producto.existencia) }}</td>
+                        <td data-label="Reservado">{{ "{:,.2f}".format(producto.reservado) }}</td>
+                        <td data-label="Disponible">{{ "{:,.2f}".format(producto.disponible) }}</td>
+                        <td data-label="Costo">${{ "{:,.2f}".format(producto.costo_unitario) }}</td>
+                        <td data-label="Valor">${{ "{:,.2f}".format(producto.valor_inventario) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8" class="sin-productos">No hay productos que coincidan con el filtro.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endif %}
+</section>
+
+<script>
+  document.querySelectorAll('.boton-vista').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const vista = boton.dataset.vista;
+      const tabla = document.getElementById('tablaPanel');
+      tabla.classList.toggle('vista-lista', vista === 'lista');
+      tabla.classList.toggle('vista-cuadricula', vista === 'cuadricula');
+      document.querySelectorAll('.boton-vista').forEach(control => {
+        const seleccionado = control === boton;
+        control.classList.toggle('activo', seleccionado);
+        control.setAttribute('aria-pressed', seleccionado);
+      });
+    });
+  });
+</script>
 {% endblock %}

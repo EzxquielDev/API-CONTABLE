@@ -1,166 +1,415 @@
-main{
-    display: flex;
-    justify-content: center;
-    flex-direction: column;
+:root {
+    --azul: #000000;
+    --texto: #000000;
+    --suave: #f6f8fa;
+    --borde: #e6eaee;
 }
 
-.MenuInventario{
-    margin: 10px auto;
-    width: 95%;
-    height: 40px;
-    display: flex;
-    justify-content: flex-end;
+.inventario-pagina {
+    width: min(1180px, 94%);
+    margin: 36px auto;
+    color: var(--texto);
 }
 
-.MenuInventario ul{
-    display: flex;
-    width: 95%;
-    height: 100%;
-    justify-content: flex-end;
-    align-items: center;
-    list-style: none;
-}
-
-.MenuInventario li{
-    margin: 10px;
-    padding: 10px;
-}
-
-.MenuInventario li:nth-child(2){
-    border-radius: 5px;
-    background-color: black;
-    a{
-        color: white;
-    }
-}
-
-.MenuInventario a{
-    text-decoration: none;
-    color: black;
-}
-
-.MenuInventario ul li a:hover{
-    border-bottom: 0.2px solid black;
-}
-
-
-
-.Cards_Inventori_Container{
-    width: 95%;
-    margin: 10px;
-    min-height: 100vh;
-    display:flex;
-    
-}
-
-.Card_Inventario{
-    width: 350px;
-    min-height: 200px;
-    max-height: 200px;
-    margin: 20px;
-    padding: 15px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    background: white;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.13);
-    border: 1px solid rgb(214, 214, 214);
-}
-
-.EXCELUNO{
-    border-radius: 7px;
-    background-color: black;
-    padding: 4px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 36px;
-    height: 36px;
-
-}
-.EXCELUNO img{
-    filter: invert(1);
-    width: 20px;
-    height: 20px;
-}
-.descargas{
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-}
-
-
-.Info_Inventario{
-    width: 90%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    flex-direction: column;
-}
-
-.desp {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2; /* Cambiá este número por las líneas que querás que se vean */
-    overflow: hidden;
-    width: 100%;
-    font-size: 0.75rem;
-    color: rgb(49, 49, 49);
-}
-
-.Estadisticas_Inventario{
-    margin-Top: 10px;
+.inventario-encabezado {
     display: flex;
     justify-content: space-between;
+    align-items: end;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.inventario-encabezado h1 {
+    margin: 0;
+    font-size: 1.9rem;
+    font-weight: 650;
+    letter-spacing: -.03em;
+}
+
+.inventario-encabezado p {
+    margin: 5px 0 0;
+    font-size: 1rem;
+    color: #778390;
+}
+
+.acciones-inventario {
+    display: flex;
+    gap: 8px;
+}
+
+.acciones-inventario a,
+.filtros-inventario button {
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    padding: 10px 13px;
+    background: #fff;
+    color: var(--texto);
+    font: inherit;
+    font-size: .95rem;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.acciones-inventario .accion-principal,
+.filtros-inventario>button {
+    background: var(--azul);
+    border-color: var(--azul);
+    color: #fff;
+}
+
+.panel {
+    background: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+}
+
+.filtros-inventario {
+    display: flex;
+    align-items: end;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 14px;
+}
+
+.filtros-inventario label {
+    display: grid;
+    gap: 6px;
+    color: #6b7785;
+    font-size: .9rem;
+}
+
+.filtros-inventario input,
+.filtros-inventario select {
+    min-width: 205px;
+    padding: 10px;
+    border: 1px solid var(--borde);
+    border-radius: 5px;
+    background: #fff;
+    color: var(--texto);
+    font: inherit;
+    font-size: .95rem;
+}
+
+.filtros-inventario button:disabled {
+    opacity: .55;
+    cursor: wait;
+}
+
+.selector-vista {
+    display: flex;
+    margin-left: auto;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.selector-vista .boton-vista {
+    border: 0;
+    border-radius: 0;
+    font-size: .9rem;
+}
+
+.selector-vista .boton-vista+.boton-vista {
+    border-left: 1px solid var(--borde);
+}
+
+.selector-vista .boton-vista.activo {
+    background: var(--suave);
+    color: var(--azul);
+    font-weight: 650;
+}
+
+#estado {
+    min-height: 22px;
+    margin: 14px 1px;
+    color: #778390;
+    font-size: .95rem;
+}
+
+.resumen-inventario {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.resumen-inventario article {
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    padding: 14px;
+    background: #fff;
+}
+
+.resumen-inventario span {
+    display: block;
+    color: #7b8794;
+    font-size: .9rem;
+}
+
+.resumen-inventario strong {
+    display: block;
+    margin-top: 5px;
+    color: var(--azul);
+    font-size: 1.45rem;
+    font-weight: 650;
+}
+
+.grafica-inventario {
+    display: flex;
     align-items: center;
+    justify-content: center;
+    gap: 30px;
+    padding: 19px;
+    margin-bottom: 16px;
+}
+
+.grafica-inventario h2 {
+    margin: 0 0 5px;
+    font-size: 1.2rem;
+    font-weight: 650;
+}
+
+.grafica-inventario p {
+    margin: 0 0 12px;
+    color: #778390;
+    font-size: .95rem;
+}
+
+.grafica-dona {
+    --porcentaje-disponible: 0%;
+    width: 140px;
+    aspect-ratio: 1;
+    flex: 0 0 140px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: conic-gradient(var(--azul) 0 var(--porcentaje-disponible), #dce3e9 var(--porcentaje-disponible) 100%);
+}
+
+.centro-grafica {
+    width: 96px;
+    aspect-ratio: 1;
+    display: grid;
+    place-content: center;
+    border-radius: 50%;
+    background: #fff;
+    text-align: center;
+}
+
+.centro-grafica strong {
+    font-size: 1.3rem;
+    color: var(--azul);
+}
+
+.centro-grafica span {
+    color: #7b8794;
+    font-size: .8rem;
+}
+
+.leyenda-grafica {
+    display: grid;
+    gap: 8px;
+    font-size: .95rem;
+}
+
+.leyenda-grafica span {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #687583;
+}
+
+.leyenda-grafica strong {
+    margin-left: auto;
+    color: var(--texto);
+}
+
+.leyenda-grafica i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+}
+
+.color-disponible {
+    background: var(--azul);
+}
+
+.color-reservado {
+    background: #dce3e9;
+}
+
+.tabla-contenedor {
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.tabla-contenedor table {
     width: 100%;
-    
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: .98rem;
 }
 
-.Info_Inventario h1{
-    font-size: 1.75rem;
-    color: rgb(0, 0, 0);
-}
-
-.Iz{
+.tabla-contenedor th,
+.tabla-contenedor td {
+    padding: 13px 9px;
+    border-bottom: 1px solid var(--borde);
+    overflow-wrap: anywhere;
     text-align: left;
-    display: flex;
-    flex-direction: column;
-    width: 50%;
 }
 
-.Der{
-    text-align: right;  
-    display: flex;
-    flex-direction: column;
-    width: 50%;
-    color: rgb(49, 49, 49);
+.tabla-contenedor th {
+    color: #6b7785;
+    background: var(--suave);
+    font-size: .8rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: .03em;
 }
 
-.Der span:nth-child(1){
-    font-size: 0.75rem;
-    color: rgb(49, 49, 49);
+.tabla-contenedor tr:last-child td {
+    border-bottom: 0;
 }
 
-.Der span:nth-child(2){
-    font-size: 1.25rem;
-    color: rgb(0, 0, 0);
+.vista-cuadricula {
+    border: 0;
+    overflow: visible;
+    background: transparent;
 }
 
-.Iz span:nth-child(1){
-    font-size: 0.75rem;
-    color: rgb(49, 49, 49);
+.vista-cuadricula table,
+.vista-cuadricula tbody {
+    display: block;
 }
 
-.Iz span:nth-child(2){
-    font-size: 1.25rem;
-    color: rgb(0, 0, 0);
+.vista-cuadricula thead {
+    display: none;
 }
 
+.vista-cuadricula tbody {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(245px, 1fr));
+    gap: 12px;
+}
 
+.vista-cuadricula tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 14px;
+    padding: 14px;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    background: #fff;
+}
 
+.vista-cuadricula td {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3px;
+    padding: 8px 0;
+    border: 0;
+    font-size: 1rem;
+}
+
+.vista-cuadricula td::before {
+    content: attr(data-label);
+    color: #87929d;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+
+.vista-cuadricula td:nth-child(2) {
+    grid-column: 1 / -1;
+    order: -1;
+    font-size: 1.12rem;
+    font-weight: 650;
+    color: var(--azul);
+}
+
+.vista-cuadricula td:nth-child(2)::before {
+    display: none;
+}
+
+@media (max-width: 700px) {
+    .inventario-encabezado {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .filtros-inventario {
+        align-items: stretch;
+    }
+
+    .filtros-inventario label,
+    .filtros-inventario input,
+    .filtros-inventario select {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .selector-vista {
+        margin-left: 0;
+        width: fit-content;
+    }
+
+    .resumen-inventario {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .grafica-inventario {
+        align-items: center;
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+    }
+
+    .tabla-contenedor.vista-lista {
+        border: 0;
+        overflow: visible;
+        background: transparent;
+    }
+
+    .vista-lista table,
+    .vista-lista tbody,
+    .vista-lista tr,
+    .vista-lista td {
+        display: block;
+        width: 100%;
+    }
+
+    .vista-lista thead {
+        display: none;
+    }
+
+    .vista-lista tr {
+        margin-bottom: 10px;
+        padding: 7px 12px;
+        border: 1px solid var(--borde);
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .vista-lista td {
+        display: grid;
+        grid-template-columns: 42% 1fr;
+        gap: 8px;
+        padding: 7px 0;
+        border: 0;
+        text-align: right;
+    }
+
+    .vista-lista td::before {
+        content: attr(data-label);
+        color: #7b8794;
+        font-size: .72rem;
+        font-weight: 650;
+        text-align: left;
+    }
+
+    .vista-cuadricula tbody {
+        grid-template-columns: 1fr;
+    }
+}
