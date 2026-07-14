@@ -4,6 +4,9 @@ from blueprints.dashboard import dashboard_bp
 app = Flask(__name__)
 app.register_blueprint(dashboard_bp)
 
+#
+from Rutas.inventario import Invetario_ruta
+
 
 @app.route("/")
 def index():
