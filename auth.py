@@ -11,7 +11,7 @@ def require_api_key(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-        key = request.headers.get("X-API-Key")
+        key = request.headers.get("X-API-Key") or request.args.get("api_key")
         if not Config.API_KEY:
             return jsonify({"error": "FLASK_API_KEY no configurada en el servidor"}), 500
         if key != Config.API_KEY:
