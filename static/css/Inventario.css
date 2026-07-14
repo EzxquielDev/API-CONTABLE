@@ -77,12 +77,20 @@ main{
     display: flex;
     justify-content: center;
     align-items: center;
+    width: 36px;
+    height: 36px;
 
 }
 .EXCELUNO img{
     filter: invert(1);
     width: 20px;
     height: 20px;
+}
+.descargas{
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
 }
 
 
