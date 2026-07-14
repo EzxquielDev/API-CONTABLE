@@ -1,8 +1,11 @@
 from flask import Flask, jsonify
-from blueprints.dashboard import dashboard_bp
+# from blueprints.dashboard import dashboard_bp
+
+# Rutas de inventario
+from Rutas.inventario import Invetario_ruta
 
 app = Flask(__name__)
-app.register_blueprint(dashboard_bp)
+#app.register_blueprint(dashboard_bp)
 
 
 @app.route("/")
@@ -18,6 +21,9 @@ def index():
         ],
     })
 
+@app.route("/inventario")
+def inventario():
+    return Invetario_ruta()
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
