@@ -1,0 +1,31 @@
+# Entornos virtuales
+venv/
+env/
+ENV/
+.venv/
+
+# Archivos compilados de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Variables de entorno y secretos
+.env
+.env.local
+*.pem
+
+# Archivos del sistema operativo (Linux/Windows/Mac)
+*~
+.DS_Store
+Thumbs.db
+
+# Configuración de editores (VS Code, etc.)
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs y bases de datos locales
+*.log
+*.sqlite3
+db.sqlite3
