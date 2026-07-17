@@ -3,115 +3,182 @@
 {% block title %}Inventario{% endblock %}
 
 {% block content %}
-<section class="inventario-pagina">
+<section class="inventario-pagina" data-api-key="{{ api_key }}">
     <div class="cargando-consulta" id="cargandoConsulta" hidden role="status" aria-live="polite">
         <div class="cargando-contenido">
             <span class="indicador-carga" aria-hidden="true"></span>
-            <strong>Consultando inventario…</strong>
+            <strong id="mensajeCarga">Consultando inventario…</strong>
             <span>Estamos obteniendo los datos desde Odoo.</span>
         </div>
     </div>
+
     <header class="inventario-encabezado">
         <div>
             <h1>Inventario</h1>
-            <p>Existencias actuales en las ubicaciones internas de Odoo.</p>
+            <p>Consulta existencias y movimientos registrados en Odoo.</p>
         </div>
-        <div class="acciones-inventario">
-            <a href="{{ url_for('inventario.reporte_csv', almacen_id=almacen_id, producto=producto_filtro, api_key=api_key) }}">Descargar CSV</a>
-            <a class="accion-principal" href="{{ url_for('inventario.reporte_xlsx', almacen_id=almacen_id, producto=producto_filtro, api_key=api_key) }}">Descargar Excel</a>
+        <div class="acciones-inventario" id="accionesDescarga" hidden>
+            <a id="descargarCsv" href="#">Descargar CSV</a>
+            <a id="descargarExcel" class="accion-principal" href="#">Descargar Excel</a>
         </div>
     </header>
 
-    <form class="panel filtros-inventario" id="formularioInventario" method="get" action="{{ url_for('inventario') }}">
-        <label for="almacen">Almacén
-            <select id="almacen" name="almacen_id">
-                <option value="">Todos los almacenes</option>
-                {% for almacen in almacenes %}
-                    <option value="{{ almacen.id }}" {% if almacen.id == almacen_id %}selected{% endif %}>
-                        {% if almacen.codigo %}{{ almacen.codigo }} — {% endif %}{{ almacen.nombre }}
-                    </option>
-                {% endfor %}
-            </select>
-        </label>
-        <label for="producto">Producto o SKU
-            <input id="producto" name="producto" type="search" value="{{ producto_filtro }}" placeholder="Ej. bicicleta o SKU-001">
-        </label>
-        <button type="submit">Consultar</button>
-        <div class="selector-vista" aria-label="Tipo de vista">
-            <button type="button" class="boton-vista" data-vista="lista" aria-pressed="false">Lista</button>
-            <button type="button" class="boton-vista activo" data-vista="cuadricula" aria-pressed="true">Cuadros</button>
-        </div>
-    </form>
+    <div class="pestanas-inventario" role="tablist" aria-label="Secciones de inventario">
+        <button class="pestana activa" type="button" role="tab" aria-selected="true" aria-controls="panelExistencias" id="tabExistencias">Existencias actuales</button>
+        <button class="pestana" type="button" role="tab" aria-selected="false" aria-controls="panelEntradas" id="tabEntradas">Entradas de productos</button>
+    </div>
 
-    {% if error %}
-        <p id="estado" class="error-inventario">No se pudo consultar Odoo: {{ error }}</p>
-    {% elif resumen %}
-        <p id="estado">{{ productos|length }} productos encontrados.</p>
-        <section class="resumen-inventario">
-            <article><span>Productos</span><strong>{{ resumen.cantidad_productos }}</strong></article>
-            <article><span>Existencia</span><strong>{{ "{:,.0f}".format(resumen.existencia_total) }}</strong></article>
-            <article><span>Disponible</span><strong>{{ "{:,.0f}".format(resumen.disponible_total) }}</strong></article>
-            <article><span>Valor de inventario</span><strong>${{ "{:,.2f}".format(resumen.valor_inventario_total) }}</strong></article>
-        </section>
-
-        {% set porcentaje_disponible = (resumen.disponible_total / resumen.existencia_total * 100) if resumen.existencia_total > 0 else 0 %}
-        <section class="panel grafica-inventario">
-            <div class="grafica-dona" style="--porcentaje-disponible: {{ porcentaje_disponible }}%" role="img" aria-label="{{ '%.1f'|format(porcentaje_disponible) }} por ciento disponible">
-                <div class="centro-grafica"><strong>{{ "%.0f"|format(porcentaje_disponible) }}%</strong><span>disponible</span></div>
+    <section id="panelExistencias" role="tabpanel" aria-labelledby="tabExistencias">
+        <form class="panel filtros-inventario" id="formularioInventario">
+            <label for="almacen">Almacén
+                <select id="almacen" name="almacen_id"><option value="">Todos los almacenes</option></select>
+            </label>
+            <label for="producto">Producto o SKU
+                <input id="producto" name="producto" type="search" placeholder="Ej. bicicleta o SKU-001">
+            </label>
+            <button type="submit">Consultar</button>
+            <div class="selector-vista" aria-label="Tipo de vista">
+                <button type="button" class="boton-vista" data-vista="lista" aria-pressed="false">Lista</button>
+                <button type="button" class="boton-vista activo" data-vista="cuadricula" aria-pressed="true">Cuadros</button>
             </div>
-            <div>
-                <h2>Disponibilidad de inventario</h2>
-                <p>Distribución de las unidades existentes según su disponibilidad actual.</p>
-                <div class="leyenda-grafica">
-                    <span><i class="color-disponible"></i>Disponible <strong>{{ "{:,.0f}".format(resumen.disponible_total) }}</strong></span>
-                    <span><i class="color-reservado"></i>Reservado <strong>{{ "{:,.0f}".format(resumen.reservado_total) }}</strong></span>
-                </div>
+        </form>
+
+        <p id="estado">La consulta comenzará al abrir esta sección.</p>
+        <section class="resumen-inventario" id="resumenInventario" hidden></section>
+        <section class="panel grafica-inventario" id="graficaInventario" hidden>
+            <div class="grafica-dona" id="donaDisponibilidad" role="img"><div class="centro-grafica"><strong id="porcentajeDisponible">0%</strong><span>disponible</span></div></div>
+            <div><h2>Disponibilidad de inventario</h2><p>Distribución de las unidades existentes según su disponibilidad actual.</p>
+                <div class="leyenda-grafica"><span><i class="color-disponible"></i>Disponible <strong id="totalDisponible">0</strong></span><span><i class="color-reservado"></i>Reservado <strong id="totalReservado">0</strong></span></div>
             </div>
         </section>
-
-        <section class="tabla-contenedor vista-cuadricula" id="tablaPanel">
-            <table>
-                <thead><tr><th>SKU</th><th>Producto</th><th>Categoría</th><th>Existencia</th><th>Reservado</th><th>Disponible</th><th>Costo</th><th>Valor</th></tr></thead>
-                <tbody>
-                    {% for producto in productos %}
-                    <tr>
-                        <td data-label="SKU">{{ producto.sku }}</td>
-                        <td data-label="Producto">{{ producto.producto }}</td>
-                        <td data-label="Categoría">{{ producto.categoria }}</td>
-                        <td data-label="Existencia">{{ "{:,.0f}".format(producto.existencia) }}</td>
-                        <td data-label="Reservado">{{ "{:,.0f}".format(producto.reservado) }}</td>
-                        <td data-label="Disponible">{{ "{:,.0f}".format(producto.disponible) }}</td>
-                        <td data-label="Costo">${{ "{:,.2f}".format(producto.costo_unitario) }}</td>
-                        <td data-label="Valor">${{ "{:,.2f}".format(producto.valor_inventario) }}</td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="8" class="sin-productos">No hay productos que coincidan con el filtro.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <section class="tabla-contenedor vista-cuadricula" id="tablaPanel" hidden>
+            <table><thead><tr><th>SKU</th><th>Producto</th><th>Categoría</th><th>Existencia</th><th>Reservado</th><th>Disponible</th><th>Costo</th><th>Valor</th></tr></thead><tbody id="filasInventario"></tbody></table>
         </section>
-    {% endif %}
+    </section>
+
+    <section id="panelEntradas" role="tabpanel" aria-labelledby="tabEntradas" hidden>
+        <form class="panel filtros-inventario" id="formularioEntradas">
+            <label for="desde">Desde <input id="desde" name="desde" type="date"></label>
+            <label for="hasta">Hasta <input id="hasta" name="hasta" type="date"></label>
+            <button type="submit">Consultar entradas</button>
+        </form>
+        <p id="estadoEntradas">Elige esta sección para consultar las entradas de productos.</p>
+        <section class="tabla-contenedor" id="tablaEntradas" hidden>
+            <table><thead><tr><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>Costo unitario</th><th>Valor total</th><th>Referencia</th></tr></thead><tbody id="filasEntradas"></tbody></table>
+        </section>
+    </section>
 </section>
 
 <script>
+(() => {
+  const raiz = document.querySelector('.inventario-pagina');
+  const apiKey = raiz.dataset.apiKey;
   const cargando = document.getElementById('cargandoConsulta');
-  const mostrarCarga = () => { cargando.hidden = false; };
-  document.getElementById('formularioInventario').addEventListener('submit', mostrarCarga);
-  document.querySelectorAll('.acciones-inventario a').forEach(enlace => enlace.addEventListener('click', mostrarCarga));
-  window.addEventListener('pageshow', () => { cargando.hidden = true; });
+  const mensajeCarga = document.getElementById('mensajeCarga');
+  const moneda = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+  const numero = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
+  let entradasCargadas = false;
 
-  document.querySelectorAll('.boton-vista').forEach(boton => {
-    boton.addEventListener('click', () => {
-      const vista = boton.dataset.vista;
-      const tabla = document.getElementById('tablaPanel');
-      tabla.classList.toggle('vista-lista', vista === 'lista');
-      tabla.classList.toggle('vista-cuadricula', vista === 'cuadricula');
-      document.querySelectorAll('.boton-vista').forEach(control => {
-        const seleccionado = control === boton;
-        control.classList.toggle('activo', seleccionado);
-        control.setAttribute('aria-pressed', seleccionado);
-      });
+  const parametros = (ruta, datos = {}) => {
+    const url = new URL(ruta, window.location.origin);
+    url.searchParams.set('api_key', apiKey);
+    Object.entries(datos).forEach(([clave, valor]) => { if (valor !== '' && valor != null) url.searchParams.set(clave, valor); });
+    return url;
+  };
+  const consultar = async (ruta, datos) => {
+    const respuesta = await fetch(parametros(ruta, datos));
+    const cuerpo = await respuesta.json();
+    if (!respuesta.ok) throw new Error(cuerpo.error || 'No fue posible consultar Odoo.');
+    return cuerpo;
+  };
+  const mostrarCarga = (mensaje) => { mensajeCarga.textContent = mensaje; cargando.hidden = false; };
+  const ocultarCarga = () => { cargando.hidden = true; };
+  const celda = (texto, etiqueta) => { const td = document.createElement('td'); td.textContent = texto; td.dataset.label = etiqueta; return td; };
+
+  async function cargarAlmacenes() {
+    const datos = await consultar('/api/inventario/almacenes');
+    const selector = document.getElementById('almacen');
+    datos.almacenes.forEach(almacen => {
+      const opcion = document.createElement('option'); opcion.value = almacen.id;
+      opcion.textContent = `${almacen.codigo ? almacen.codigo + ' — ' : ''}${almacen.nombre}`;
+      selector.append(opcion);
     });
-  });
+  }
+
+  async function cargarInventario() {
+    const almacen_id = document.getElementById('almacen').value;
+    const producto = document.getElementById('producto').value.trim();
+    mostrarCarga('Consultando existencias…');
+    try {
+      const [productos, resumen] = await Promise.all([
+        cargarReporteCompleto({ almacen_id, producto }),
+        consultar('/api/inventario/resumen', { almacen_id, producto })
+      ]);
+      pintarInventario(productos, resumen);
+      const exportacion = parametros('/api/inventario/reporte.csv', { almacen_id, producto });
+      document.getElementById('descargarCsv').href = exportacion;
+      document.getElementById('descargarExcel').href = parametros('/api/inventario/reporte.xlsx', { almacen_id, producto });
+      document.getElementById('accionesDescarga').hidden = false;
+    } catch (error) {
+      document.getElementById('estado').textContent = `No se pudo consultar Odoo: ${error.message}`;
+    } finally { ocultarCarga(); }
+  }
+
+  async function cargarReporteCompleto(filtros) {
+    const productos = [];
+    let pagina = 1;
+    while (true) {
+      const reporte = await consultar('/api/inventario/reporte', { ...filtros, pagina, por_pagina: 500 });
+      productos.push(...reporte.productos);
+      if (reporte.productos.length < 500) return productos;
+      pagina += 1;
+    }
+  }
+
+  function pintarInventario(productos, resumen) {
+    document.getElementById('estado').textContent = `${productos.length} productos encontrados.`;
+    const filas = document.getElementById('filasInventario'); filas.replaceChildren();
+    productos.forEach(producto => {
+      const fila = document.createElement('tr');
+      [['sku', 'SKU'], ['producto', 'Producto'], ['categoria', 'Categoría']].forEach(([campo, etiqueta]) => fila.append(celda(producto[campo], etiqueta)));
+      [['existencia', 'Existencia'], ['reservado', 'Reservado'], ['disponible', 'Disponible']].forEach(([campo, etiqueta]) => fila.append(celda(numero.format(producto[campo]), etiqueta)));
+      fila.append(celda(moneda.format(producto.costo_unitario), 'Costo'), celda(moneda.format(producto.valor_inventario), 'Valor'));
+      filas.append(fila);
+    });
+    if (!productos.length) { const fila = document.createElement('tr'); const td = celda('No hay productos que coincidan con el filtro.', ''); td.colSpan = 8; fila.append(td); filas.append(fila); }
+    document.getElementById('tablaPanel').hidden = false;
+    const tarjetas = [['Productos', resumen.cantidad_productos], ['Existencia', numero.format(resumen.existencia_total)], ['Disponible', numero.format(resumen.disponible_total)], ['Valor de inventario', moneda.format(resumen.valor_inventario_total)]];
+    const panel = document.getElementById('resumenInventario'); panel.replaceChildren(); tarjetas.forEach(([titulo, valor]) => { const articulo = document.createElement('article'); const span = document.createElement('span'); const fuerte = document.createElement('strong'); span.textContent = titulo; fuerte.textContent = valor; articulo.append(span, fuerte); panel.append(articulo); }); panel.hidden = false;
+    const porcentaje = resumen.existencia_total > 0 ? resumen.disponible_total / resumen.existencia_total * 100 : 0;
+    document.getElementById('donaDisponibilidad').style.setProperty('--porcentaje-disponible', `${porcentaje}%`);
+    document.getElementById('donaDisponibilidad').setAttribute('aria-label', `${porcentaje.toFixed(1)} por ciento disponible`);
+    document.getElementById('porcentajeDisponible').textContent = `${Math.round(porcentaje)}%`;
+    document.getElementById('totalDisponible').textContent = numero.format(resumen.disponible_total);
+    document.getElementById('totalReservado').textContent = numero.format(resumen.reservado_total);
+    document.getElementById('graficaInventario').hidden = false;
+  }
+
+  async function cargarEntradas() {
+    mostrarCarga('Consultando entradas de productos…');
+    const estado = document.getElementById('estadoEntradas');
+    try {
+      const datos = await consultar('/api/inventario/entradas', { desde: document.getElementById('desde').value, hasta: document.getElementById('hasta').value });
+      const filas = document.getElementById('filasEntradas'); filas.replaceChildren();
+      datos.entradas.forEach(entrada => { const fila = document.createElement('tr'); [['fecha', 'Fecha'], ['producto', 'Producto'], ['cantidad', 'Cantidad'], ['costo_unitario', 'Costo unitario'], ['valor_total', 'Valor total'], ['referencia', 'Referencia']].forEach(([campo, etiqueta]) => { const valor = campo === 'cantidad' ? numero.format(entrada[campo]) : ['costo_unitario', 'valor_total'].includes(campo) ? moneda.format(entrada[campo]) : (entrada[campo] || '—'); fila.append(celda(valor, etiqueta)); }); filas.append(fila); });
+      if (!datos.entradas.length) { const fila = document.createElement('tr'); const td = celda('No hay entradas de productos en el periodo seleccionado.', ''); td.colSpan = 6; fila.append(td); filas.append(fila); }
+      estado.textContent = `${datos.entradas.length} entradas encontradas, del ${datos.desde} al ${datos.hasta}.`;
+      document.getElementById('tablaEntradas').hidden = false; entradasCargadas = true;
+    } catch (error) { estado.textContent = `No se pudo consultar Odoo: ${error.message}`; }
+    finally { ocultarCarga(); }
+  }
+
+  document.getElementById('formularioInventario').addEventListener('submit', event => { event.preventDefault(); cargarInventario(); });
+  document.getElementById('formularioEntradas').addEventListener('submit', event => { event.preventDefault(); cargarEntradas(); });
+  document.querySelectorAll('.boton-vista').forEach(boton => boton.addEventListener('click', () => { const tabla = document.getElementById('tablaPanel'); const lista = boton.dataset.vista === 'lista'; tabla.classList.toggle('vista-lista', lista); tabla.classList.toggle('vista-cuadricula', !lista); document.querySelectorAll('.boton-vista').forEach(control => { const activo = control === boton; control.classList.toggle('activo', activo); control.setAttribute('aria-pressed', activo); }); }));
+  document.getElementById('tabExistencias').addEventListener('click', () => { document.getElementById('panelExistencias').hidden = false; document.getElementById('panelEntradas').hidden = true; document.getElementById('tabExistencias').classList.add('activa'); document.getElementById('tabEntradas').classList.remove('activa'); document.getElementById('tabExistencias').setAttribute('aria-selected', 'true'); document.getElementById('tabEntradas').setAttribute('aria-selected', 'false'); });
+  document.getElementById('tabEntradas').addEventListener('click', () => { document.getElementById('panelExistencias').hidden = true; document.getElementById('panelEntradas').hidden = false; document.getElementById('tabExistencias').classList.remove('activa'); document.getElementById('tabEntradas').classList.add('activa'); document.getElementById('tabExistencias').setAttribute('aria-selected', 'false'); document.getElementById('tabEntradas').setAttribute('aria-selected', 'true'); if (!entradasCargadas) cargarEntradas(); });
+  const hoy = new Date(); const hace30 = new Date(hoy); hace30.setDate(hoy.getDate() - 30); const fecha = valor => valor.toISOString().slice(0, 10); document.getElementById('desde').value = fecha(hace30); document.getElementById('hasta').value = fecha(hoy);
+  Promise.all([cargarAlmacenes(), cargarInventario()]).catch(error => { document.getElementById('estado').textContent = `No se pudo consultar Odoo: ${error.message}`; ocultarCarga(); });
+})();
 </script>
 {% endblock %}

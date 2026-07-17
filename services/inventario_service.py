@@ -159,3 +159,73 @@ def obtener_resumen_inventario(almacen_id=None, producto=None):
         "disponible_total": round(sum(producto["disponible"] for producto in productos), 2),
         "valor_inventario_total": round(sum(producto["valor_inventario"] for producto in productos), 2),
     }
+
+
+def obtener_entradas_inventario(desde, hasta, limite=200, desplazamiento=0):
+    """Devuelve las entradas de productos ya valorizadas por Odoo.
+
+    Las capas de valoración son la fuente usada también por el Kardex: una
+    cantidad positiva representa una entrada y permite mostrar su costo real.
+    """
+    if limite < 1 or limite > 500:
+        raise ValueError("El límite debe estar entre 1 y 500.")
+
+    odoo = get_odoo_client()
+    capas = odoo.search_read(
+        "stock.valuation.layer",
+        domain=[
+            ["quantity", ">", 0],
+            ["create_date", ">=", desde],
+            ["create_date", "<=", f"{hasta} 23:59:59"],
+        ],
+        fields=["product_id", "quantity", "unit_cost", "value", "create_date", "description", "stock_move_id"],
+        order="create_date desc, id desc",
+        limit=limite,
+        offset=desplazamiento,
+    )
+
+    move_ids = [capa["stock_move_id"][0] for capa in capas if capa.get("stock_move_id")]
+    referencias = {}
+    if move_ids:
+        movimientos = odoo.search_read(
+            "stock.move", domain=[["id", "in", move_ids]], fields=["origin", "picking_id"]
+        )
+        picking_ids = list({movimiento["picking_id"][0] for movimiento in movimientos if movimiento.get("picking_id")})
+        referencias_picking = {}
+        if picking_ids:
+            pickings = odoo.search_read(
+                "stock.picking", domain=[["id", "in", picking_ids]], fields=["origin", "name"]
+            )
+            referencias_picking = {
+                picking["id"]: picking.get("origin") or picking.get("name") for picking in pickings
+            }
+        for movimiento in movimientos:
+            referencias[movimiento["id"]] = movimiento.get("origin") or (
+                referencias_picking.get(movimiento["picking_id"][0]) if movimiento.get("picking_id") else ""
+            )
+
+    return [
+        {
+            "fecha": capa.get("create_date", "")[:10],
+            "producto": _many2one_name(capa.get("product_id")),
+            "cantidad": round(float(capa.get("quantity", 0) or 0), 2),
+            "costo_unitario": round(float(capa.get("unit_cost", 0) or 0), 2),
+            "valor_total": round(float(capa.get("value", 0) or 0), 2),
+            "referencia": referencias.get(capa["stock_move_id"][0], "") if capa.get("stock_move_id") else "",
+            "descripcion": capa.get("description") or "",
+        }
+        for capa in capas
+    ]
+
+
+def obtener_todas_entradas_inventario(desde, hasta):
+    """Recupera todas las entradas por bloques compatibles con Odoo."""
+    entradas = []
+    desplazamiento = 0
+    limite = 500
+    while True:
+        bloque = obtener_entradas_inventario(desde, hasta, limite, desplazamiento)
+        entradas.extend(bloque)
+        if len(bloque) < limite:
+            return entradas
+        desplazamiento += limite

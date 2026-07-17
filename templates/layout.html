@@ -5,9 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Global.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Inventario.css')}}">  
+    {% block extra_head %}{% endblock %}
     <title>{{ title }}</title>
 </head>
 <body>
+    <header class="barra-navegacion">
+        <a class="marca" href="{{ url_for('index') }}">API Contable</a>
+        <nav aria-label="Navegación principal">
+            <a class="{{ 'activo' if request.endpoint == 'index' else '' }}" href="{{ url_for('index') }}">Inicio</a>
+            <a class="{{ 'activo' if request.endpoint == 'inventario' else '' }}" href="{{ url_for('inventario') }}">Inventario</a>
+            <a class="{{ 'activo' if request.endpoint == 'entradas_productos' else '' }}" href="{{ url_for('entradas_productos') }}">Entradas</a>
+            <details class="menu-api {{ 'activo' if request.endpoint in ['api_info', 'api_estado'] else '' }}">
+                <summary>API</summary>
+                <div class="menu-api-contenido">
+                    <a href="{{ url_for('entradas_productos') }}">Panel de consultas</a>
+                    <a href="{{ url_for('entradas_productos') }}#entradas">Entradas de productos</a>
+                    <a href="{{ url_for('api_estado') }}">Información técnica (JSON)</a>
+                    <span class="menu-api-titulo">Dashboard</span>
+                    <a href="{{ url_for('dashboard.resumen', api_key=api_key) }}">Resumen financiero</a>
+                    <a href="{{ url_for('dashboard.facturas_pendientes', api_key=api_key) }}">Facturas pendientes</a>
+                    <a href="{{ url_for('dashboard.facturas_pendientes_csv', api_key=api_key) }}">Facturas pendientes (CSV)</a>
+                    <a href="{{ url_for('dashboard.gastos_pendientes', api_key=api_key) }}">Gastos pendientes</a>
+                    <span class="menu-api-titulo">Ventas <small>requiere fechas</small></span>
+                    <a href="{{ url_for('ventas.reporte', api_key=api_key) }}">Reporte de ventas</a>
+                    <a href="{{ url_for('ventas.productos_mas_vendidos', api_key=api_key) }}">Productos más vendidos</a>
+                    <a href="{{ url_for('ventas.reporte_xlsx', api_key=api_key) }}">Reporte de ventas (Excel)</a>
+                    <span class="menu-api-titulo">Kardex <small>requiere fechas</small></span>
+                    <a href="{{ url_for('kardex.kardex', api_key=api_key) }}">Movimientos Kardex</a>
+                    <a href="{{ url_for('kardex.kardex_xlsx', api_key=api_key) }}">Kardex (Excel)</a>
+                    <span class="menu-api-titulo">Inventario</span>
+                    <a href="{{ url_for('inventario.almacenes', api_key=api_key) }}">Almacenes</a>
+                    <a href="{{ url_for('inventario.reporte', api_key=api_key) }}">Reporte de existencias</a>
+                    <a href="{{ url_for('inventario.resumen', api_key=api_key) }}">Resumen de existencias</a>
+                    <a href="{{ url_for('entradas_productos') }}#entradas">Entradas de productos (UI)</a>
+                    <a href="{{ url_for('inventario.entradas', api_key=api_key) }}">Entradas de productos (JSON)</a>
+                    <a href="{{ url_for('inventario.entradas_xlsx', api_key=api_key) }}">Entradas de productos (Excel)</a>
+                    <a href="{{ url_for('inventario.reporte_csv', api_key=api_key) }}">Inventario (CSV)</a>
+                    <a href="{{ url_for('inventario.reporte_xlsx', api_key=api_key) }}">Inventario (Excel)</a>
+                </div>
+            </details>
+        </nav>
+    </header>
 
     <main>
         {% block content %}

@@ -1,0 +1,132 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<section class="api-pagina" data-api-key="{{ api_key }}">
+    <div class="cargando-consulta" id="cargandoConsulta" role="status" aria-live="polite">
+        <div class="cargando-contenido">
+            <span class="indicador-carga" aria-hidden="true"></span>
+            <strong id="mensajeCarga">Consultando entradas de productos…</strong>
+            <span>Estamos obteniendo los datos desde Odoo.</span>
+        </div>
+    </div>
+
+    <header class="api-encabezado">
+        <div>
+            <p class="sobrelinea">Panel de consultas</p>
+            <h1>API Contable</h1>
+            <p>Consulta la información de Odoo desde una interfaz clara, sin navegar respuestas JSON.</p>
+        </div>
+        <span class="estado-api"><i></i> Consulta directa a Odoo</span>
+    </header>
+
+    <nav class="api-secciones" aria-label="Consultas disponibles">
+        <a class="api-seccion activa" href="#entradas">Entradas de productos <small>Prioridad</small></a>
+        <a class="api-seccion" href="{{ url_for('inventario') }}">Existencias actuales</a>
+        <a class="api-seccion" href="{{ url_for('index') }}">Ventas y Kardex</a>
+    </nav>
+
+    <section class="api-modulo" id="entradas" aria-labelledby="tituloEntradas">
+        <div class="api-modulo-encabezado">
+            <div>
+                <h2 id="tituloEntradas">Entradas de productos</h2>
+                <p>Movimientos de entrada valorizados registrados en Odoo.</p>
+            </div>
+            <div class="acciones-entradas">
+                <span class="etiqueta-api">Inventario</span>
+                <a id="descargarEntradasExcel" class="accion-principal" href="#">Descargar Excel</a>
+            </div>
+        </div>
+
+        <form class="panel filtros-inventario" id="formularioEntradas">
+            <label for="desde">Desde <input id="desde" name="desde" type="date" required></label>
+            <label for="hasta">Hasta <input id="hasta" name="hasta" type="date" required></label>
+            <button type="submit">Actualizar entradas</button>
+        </form>
+
+        <p class="estado-consulta" id="estadoEntradas" aria-live="polite">Preparando la consulta…</p>
+        <section class="tabla-contenedor" id="tablaEntradas" hidden>
+            <table>
+                <thead><tr><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>Costo unitario</th><th>Valor total</th><th>Referencia</th></tr></thead>
+                <tbody id="filasEntradas"></tbody>
+            </table>
+        </section>
+    </section>
+</section>
+
+<script>
+(() => {
+  const raiz = document.querySelector('.api-pagina');
+  const apiKey = raiz.dataset.apiKey;
+  const cargando = document.getElementById('cargandoConsulta');
+  const mensajeCarga = document.getElementById('mensajeCarga');
+  const estado = document.getElementById('estadoEntradas');
+  const moneda = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+  const numero = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
+
+  const fecha = valor => valor.toISOString().slice(0, 10);
+  const hoy = new Date();
+  const hace30 = new Date(hoy); hace30.setDate(hoy.getDate() - 30);
+  document.getElementById('desde').value = fecha(hace30);
+  document.getElementById('hasta').value = fecha(hoy);
+
+  function actualizarEnlaceExcel() {
+    const parametros = new URLSearchParams({
+      api_key: apiKey,
+      desde: document.getElementById('desde').value,
+      hasta: document.getElementById('hasta').value
+    });
+    document.getElementById('descargarEntradasExcel').href = `/api/inventario/entradas.xlsx?${parametros}`;
+  }
+
+  const mostrarCarga = mensaje => { mensajeCarga.textContent = mensaje; cargando.hidden = false; };
+  const ocultarCarga = () => { cargando.hidden = true; };
+  const celda = (texto, etiqueta) => { const td = document.createElement('td'); td.textContent = texto; td.dataset.label = etiqueta; return td; };
+
+  async function cargarEntradas() {
+    mostrarCarga('Consultando entradas de productos…');
+    estado.textContent = 'Consultando movimientos en Odoo…';
+    actualizarEnlaceExcel();
+    try {
+      const parametros = new URLSearchParams({
+        api_key: apiKey,
+        desde: document.getElementById('desde').value,
+        hasta: document.getElementById('hasta').value
+      });
+      const respuesta = await fetch(`/api/inventario/entradas?${parametros}`);
+      const datos = await respuesta.json();
+      if (!respuesta.ok) throw new Error(datos.error || 'No fue posible consultar Odoo.');
+
+      const filas = document.getElementById('filasEntradas');
+      filas.replaceChildren();
+      datos.entradas.forEach(entrada => {
+        const fila = document.createElement('tr');
+        const valores = [
+          ['fecha', 'Fecha', entrada.fecha || '—'],
+          ['producto', 'Producto', entrada.producto || '—'],
+          ['cantidad', 'Cantidad', numero.format(entrada.cantidad)],
+          ['costo_unitario', 'Costo unitario', moneda.format(entrada.costo_unitario)],
+          ['valor_total', 'Valor total', moneda.format(entrada.valor_total)],
+          ['referencia', 'Referencia', entrada.referencia || '—']
+        ];
+        valores.forEach(([, etiqueta, valor]) => fila.append(celda(valor, etiqueta)));
+        filas.append(fila);
+      });
+      if (!datos.entradas.length) {
+        const fila = document.createElement('tr'); const td = celda('No hay entradas de productos en el periodo seleccionado.', '');
+        td.colSpan = 6; fila.append(td); filas.append(fila);
+      }
+      estado.textContent = `${datos.entradas.length} entradas encontradas, del ${datos.desde} al ${datos.hasta}.`;
+      document.getElementById('tablaEntradas').hidden = false;
+    } catch (error) {
+      estado.textContent = `No se pudo consultar Odoo: ${error.message}`;
+    } finally { ocultarCarga(); }
+  }
+
+  document.getElementById('formularioEntradas').addEventListener('submit', evento => { evento.preventDefault(); cargarEntradas(); });
+  document.getElementById('desde').addEventListener('change', actualizarEnlaceExcel);
+  document.getElementById('hasta').addEventListener('change', actualizarEnlaceExcel);
+  actualizarEnlaceExcel();
+  cargarEntradas();
+})();
+</script>
+{% endblock %}
