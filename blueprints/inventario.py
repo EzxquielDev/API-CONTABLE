@@ -79,7 +79,7 @@ def resumen():
 @inventario_bp.route("/entradas", methods=["GET"])
 @require_api_key
 def entradas():
-    """Movimientos de entrada valorizados registrados en Odoo."""
+    """Compras facturadas por proveedor y producto."""
     limite = request.args.get("limite", default=200, type=int)
     try:
         desde, hasta = _fechas_entradas()

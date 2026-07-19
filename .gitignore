@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+config.json
 
 ## Entornos y caché de Python
 venv/

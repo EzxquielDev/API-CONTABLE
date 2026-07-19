@@ -22,6 +22,10 @@
     </div>
     <button class="btn-primario" id="btnKardex" onclick="verKardex()">Generar kardex</button>
     <button class="btn-secundario" id="btnKardexExcel" onclick="descargarKardexExcel()">⬇ Kardex a Excel</button>
+    <div class="selector-vista" aria-label="Tipo de vista del kardex">
+      <button type="button" class="boton-vista activo" data-vista="lista" aria-pressed="true">Lista</button>
+      <button type="button" class="boton-vista" data-vista="cuadricula" aria-pressed="false">Cuadros</button>
+    </div>
   </div>
   <div id="estado"></div>
 </div>
@@ -33,6 +37,7 @@
 
 <script>
   const API_KEY = "{{ api_key }}";
+  let vistaKardex = "lista";
 
   // Por defecto: primer día del mes actual hasta hoy
   const hoy = new Date();
@@ -43,6 +48,11 @@
   function formatoMoneda(valor) {
     return "$" + Number(valor).toLocaleString("es-SV", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
+
+  const SIN_DATOS = "No existen datos";
+  const mostrarTexto = valor => valor == null || String(valor).trim() === "" ? SIN_DATOS : valor;
+  const mostrarCantidad = valor => valor == null || Number(valor) === 0 ? SIN_DATOS : valor;
+  const mostrarMoneda = valor => valor == null || String(valor).trim() === "" ? SIN_DATOS : formatoMoneda(valor);
 
   async function verKardex() {
     const desde = document.getElementById("desde").value;
@@ -84,19 +94,20 @@
 
       data.productos.forEach(p => {
         const bloque = document.createElement("div");
+        bloque.className = `tabla-contenedor vista-${vistaKardex}`;
         bloque.style.marginBottom = "24px";
         let filas = `<tr style="font-style:italic;color:#666;">
-          <td></td><td>${p.codigo}</td><td>${p.descripcion}</td><td></td><td></td><td></td><td></td><td></td>
-          <td>${p.existencia_inicial}</td><td>${formatoMoneda(p.saldo_inicial)}</td><td>saldo inicial</td></tr>`;
+          <td data-label="Fecha">${SIN_DATOS}</td><td data-label="Código">${mostrarTexto(p.codigo)}</td><td data-label="Descripción">${mostrarTexto(p.descripcion)}</td><td data-label="Qty entrada">${SIN_DATOS}</td><td data-label="Costo unit.">${SIN_DATOS}</td><td data-label="Costo total">${SIN_DATOS}</td><td data-label="Qty salida">${SIN_DATOS}</td><td data-label="Precio venta">${SIN_DATOS}</td>
+          <td data-label="Existencia">${mostrarTexto(p.existencia_inicial)}</td><td data-label="Saldo">${mostrarMoneda(p.saldo_inicial)}</td><td data-label="Referencia">saldo inicial</td></tr>`;
         p.movimientos.forEach(m => {
           filas += `<tr>
-            <td>${m.fecha}</td><td>${p.codigo}</td><td>${p.descripcion}</td>
-            <td>${m.qty_entrada || ""}</td>
-            <td>${m.costo_unitario != null ? formatoMoneda(m.costo_unitario) : ""}</td>
-            <td>${m.costo_total != null ? formatoMoneda(m.costo_total) : ""}</td>
-            <td>${m.qty_salida || ""}</td>
-            <td>${m.precio_venta != null ? formatoMoneda(m.precio_venta) + (m.precio_estimado ? " *" : "") : ""}</td>
-            <td>${m.existencia}</td><td>${formatoMoneda(m.saldo)}</td><td>${m.referencia}</td></tr>`;
+            <td data-label="Fecha">${mostrarTexto(m.fecha)}</td><td data-label="Código">${mostrarTexto(p.codigo)}</td><td data-label="Descripción">${mostrarTexto(p.descripcion)}</td>
+            <td data-label="Qty entrada">${mostrarCantidad(m.qty_entrada)}</td>
+            <td data-label="Costo unit.">${mostrarMoneda(m.costo_unitario)}</td>
+            <td data-label="Costo total">${mostrarMoneda(m.costo_total)}</td>
+            <td data-label="Qty salida">${mostrarCantidad(m.qty_salida)}</td>
+            <td data-label="Precio venta">${m.precio_venta != null ? formatoMoneda(m.precio_venta) + (m.precio_estimado ? " *" : "") : SIN_DATOS}</td>
+            <td data-label="Existencia">${mostrarTexto(m.existencia)}</td><td data-label="Saldo">${mostrarMoneda(m.saldo)}</td><td data-label="Referencia">${mostrarTexto(m.referencia)}</td></tr>`;
         });
         bloque.innerHTML = `<table>
           <thead><tr><th>Fecha</th><th>Código</th><th>Descripción</th><th>Qty entrada</th>
@@ -127,6 +138,13 @@
     if (codigo) url += `&codigo=${encodeURIComponent(codigo)}`;
     window.location.href = url;
   }
+
+  document.querySelectorAll(".boton-vista").forEach(boton => boton.addEventListener("click", () => {
+    const lista = boton.dataset.vista === "lista";
+    vistaKardex = boton.dataset.vista;
+    document.querySelectorAll("#cuerpoKardex .tabla-contenedor").forEach(tabla => { tabla.classList.toggle("vista-lista", lista); tabla.classList.toggle("vista-cuadricula", !lista); });
+    document.querySelectorAll(".boton-vista").forEach(control => { const activo = control === boton; control.classList.toggle("activo", activo); control.setAttribute("aria-pressed", activo); });
+  }));
 </script>
 
 {% endblock %}

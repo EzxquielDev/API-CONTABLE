@@ -8,11 +8,14 @@ Primer módulo: **Dashboard financiero**, listo para consumir desde Excel o Goog
 pip install -r requirements.txt
 ```
 
-Copia `.env.example` a `.env` y completa tus datos reales:
+Usa `config.example.json` como plantilla y crea `config.json` con tus datos reales:
 
 ```powershell
-copy .env.example .env
+copy config.example.json config.json
 ```
+
+`config.json` se lee antes que el `.env` y no se sube a Git. El `.env` se
+mantiene únicamente como compatibilidad temporal para instalaciones previas.
 
 ## 2. Ejecutar la API
 
@@ -37,8 +40,8 @@ Todos requieren el header `X-API-Key` con el valor que pusiste en `FLASK_API_KEY
 | `GET /api/inventario/reporte?almacen_id=ID&producto=TEXTO` | Existencias actuales por producto |
 | `GET /api/inventario/reporte.csv` | Reporte completo en CSV |
 | `GET /api/inventario/reporte.xlsx` | Reporte completo en Excel |
-| `GET /api/inventario/entradas?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` | Entradas de producto valorizadas |
-| `GET /api/inventario/entradas.xlsx?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` | Entradas en Excel con proveedor, factura, código y valores |
+| `GET /api/inventario/entradas?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` | Compras facturadas por proveedor y producto |
+| `GET /api/inventario/entradas.xlsx?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` | Compras en Excel con proveedor, factura, código y valores |
 
 Prueba rápida con PowerShell:
 

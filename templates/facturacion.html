@@ -17,6 +17,10 @@
     </div>
     <button class="btn-primario" id="btnGenerar" onclick="generarReporte()">Generar reporte</button>
     <button class="btn-secundario" id="btnExcel" onclick="descargarExcel()" disabled>⬇ Descargar Excel</button>
+    <div class="selector-vista" aria-label="Tipo de vista del reporte">
+      <button type="button" class="boton-vista activo" data-vista="lista" aria-pressed="true">Lista</button>
+      <button type="button" class="boton-vista" data-vista="cuadricula" aria-pressed="false">Cuadros</button>
+    </div>
   </div>
   <div id="estado"></div>
 </div>
@@ -42,7 +46,7 @@
   </div>
 </div>
 
-<div class="panel" id="panelDetalle" style="display:none;">
+<div class="panel tabla-contenedor vista-lista" id="panelDetalle" style="display:none;">
   <table>
     <thead>
       <tr>
@@ -108,13 +112,13 @@
       data.facturas.forEach(f => {
         const fila = document.createElement("tr");
         fila.innerHTML = `
-          <td>${f.numero}</td>
-          <td>${f.cliente}</td>
-          <td>${f.fecha}</td>
-          <td>${formatoMoneda(f.subtotal_sin_iva)}</td>
-          <td>${formatoMoneda(f.iva)}</td>
-          <td>${formatoMoneda(f.total)}</td>
-          <td>${f.estado_pago}</td>`;
+          <td data-label="Número">${f.numero}</td>
+          <td data-label="Cliente">${f.cliente}</td>
+          <td data-label="Fecha">${f.fecha}</td>
+          <td data-label="Sin IVA">${formatoMoneda(f.subtotal_sin_iva)}</td>
+          <td data-label="IVA">${formatoMoneda(f.iva)}</td>
+          <td data-label="Total">${formatoMoneda(f.total)}</td>
+          <td data-label="Estado">${f.estado_pago}</td>`;
         cuerpo.appendChild(fila);
       });
       document.getElementById("panelDetalle").style.display = "block";
@@ -135,6 +139,13 @@
     // pasamos la API key como query param para este endpoint específico.
     window.location.href = `/api/ventas/reporte.xlsx?desde=${desde}&hasta=${hasta}&api_key=${API_KEY}`;
   }
+
+  document.querySelectorAll(".boton-vista").forEach(boton => boton.addEventListener("click", () => {
+    const lista = boton.dataset.vista === "lista";
+    const tabla = document.getElementById("panelDetalle");
+    tabla.classList.toggle("vista-lista", lista); tabla.classList.toggle("vista-cuadricula", !lista);
+    document.querySelectorAll(".boton-vista").forEach(control => { const activo = control === boton; control.classList.toggle("activo", activo); control.setAttribute("aria-pressed", activo); });
+  }));
 </script>
 
 {% endblock %}

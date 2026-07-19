@@ -8,86 +8,6 @@ def _many2one_name(value):
     return value[1] if value else ""
 
 
-def _datos_documentos_entrada(odoo, capas):
-    """Relaciona cada capa con producto, proveedor y factura de compra.
-
-    Las capas de valoración no guardan directamente el proveedor ni la factura.
-    Se obtiene el documento de origen desde el movimiento, la orden de compra y
-    finalmente la factura de proveedor asociada a esa orden.
-    """
-    producto_ids = list({capa["product_id"][0] for capa in capas if capa.get("product_id")})
-    productos = {}
-    if producto_ids:
-        fichas = odoo.search_read(
-            "product.product",
-            domain=[["id", "in", producto_ids]],
-            fields=["display_name", "default_code"],
-        )
-        productos = {
-            ficha["id"]: {
-                "codigo": ficha.get("default_code") or "",
-                "descripcion": ficha.get("display_name") or "",
-            }
-            for ficha in fichas
-        }
-
-    move_ids = list({capa["stock_move_id"][0] for capa in capas if capa.get("stock_move_id")})
-    movimientos = []
-    if move_ids:
-        movimientos = odoo.search_read(
-            "stock.move",
-            domain=[["id", "in", move_ids]],
-            fields=["origin", "picking_id"],
-        )
-
-    picking_ids = list({movimiento["picking_id"][0] for movimiento in movimientos if movimiento.get("picking_id")})
-    origenes_picking = {}
-    if picking_ids:
-        pickings = odoo.search_read(
-            "stock.picking",
-            domain=[["id", "in", picking_ids]],
-            fields=["origin", "name"],
-        )
-        origenes_picking = {
-            picking["id"]: picking.get("origin") or picking.get("name") or ""
-            for picking in pickings
-        }
-
-    origenes_movimiento = {
-        movimiento["id"]: movimiento.get("origin") or (
-            origenes_picking.get(movimiento["picking_id"][0], "") if movimiento.get("picking_id") else ""
-        )
-        for movimiento in movimientos
-    }
-    ordenes_nombres = list({origen.strip() for origen in origenes_movimiento.values() if origen and origen.strip()})
-    ordenes = []
-    if ordenes_nombres:
-        ordenes = odoo.search_read(
-            "purchase.order",
-            domain=[["name", "in", ordenes_nombres]],
-            fields=["name", "partner_id"],
-        )
-    proveedor_por_orden = {orden["name"]: _many2one_name(orden.get("partner_id")) for orden in ordenes}
-
-    facturas_por_orden = {}
-    if ordenes_nombres:
-        facturas = odoo.search_read(
-            "account.move",
-            domain=[["move_type", "=", "in_invoice"], ["invoice_origin", "in", ordenes_nombres]],
-            fields=["name", "ref", "invoice_origin", "partner_id"],
-        )
-        for factura in facturas:
-            orden = factura.get("invoice_origin")
-            if not orden:
-                continue
-            facturas_por_orden[orden] = {
-                "factura": factura.get("ref") or factura.get("name") or "",
-                "proveedor": _many2one_name(factura.get("partner_id")),
-            }
-
-    return productos, origenes_movimiento, proveedor_por_orden, facturas_por_orden
-
-
 def obtener_almacenes():
     """Almacenes disponibles para filtrar el reporte."""
     odoo = get_odoo_client()
@@ -241,51 +161,63 @@ def obtener_resumen_inventario(almacen_id=None, producto=None):
     }
 
 
-def obtener_entradas_inventario(desde, hasta, limite=200, desplazamiento=0):
-    """Devuelve las entradas de productos ya valorizadas por Odoo.
-
-    Las capas de valoración son la fuente usada también por el Kardex: una
-    cantidad positiva representa una entrada y permite mostrar su costo real.
-    """
-    if limite < 1 or limite > 500:
-        raise ValueError("El límite debe estar entre 1 y 500.")
-
+def _consultar_entradas_compra(desde, hasta, limite, desplazamiento):
+    """Consulta líneas de facturas de proveedor para el reporte de compras."""
     odoo = get_odoo_client()
-    capas = odoo.search_read(
-        "stock.valuation.layer",
+    facturas = odoo.search_read(
+        "account.move",
         domain=[
-            ["quantity", ">", 0],
-            ["create_date", ">=", desde],
-            ["create_date", "<=", f"{hasta} 23:59:59"],
+            ["move_type", "=", "in_invoice"],
+            ["state", "=", "posted"],
+            ["invoice_date", ">=", desde],
+            ["invoice_date", "<=", hasta],
         ],
-        fields=["product_id", "quantity", "unit_cost", "value", "create_date", "description", "stock_move_id"],
-        order="create_date desc, id desc",
+        fields=["invoice_date", "partner_id", "ref", "name"],
+        order="invoice_date desc, id desc",
         limit=limite,
         offset=desplazamiento,
     )
+    factura_por_id = {factura["id"]: factura for factura in facturas}
+    if not factura_por_id:
+        return [], 0
 
-    productos, referencias, proveedores, facturas = _datos_documentos_entrada(odoo, capas)
+    lineas = odoo.search_read(
+        "account.move.line",
+        domain=[
+            ["move_id", "in", list(factura_por_id)],
+            ["product_id", "!=", False],
+            ["display_type", "=", False],
+        ],
+        fields=["move_id", "product_id", "name", "quantity", "price_unit", "price_subtotal"],
+        order="move_id, id",
+    )
+    producto_ids = list({linea["product_id"][0] for linea in lineas if linea.get("product_id")})
+    productos = _datos_producto(producto_ids)
+
     entradas = []
-    for capa in capas:
-        movimiento_id = capa["stock_move_id"][0] if capa.get("stock_move_id") else None
-        referencia = referencias.get(movimiento_id, "")
-        documento = facturas.get(referencia, {})
-        producto = productos.get(capa["product_id"][0], {}) if capa.get("product_id") else {}
+    for linea in lineas:
+        factura = factura_por_id.get(linea["move_id"][0]) if linea.get("move_id") else None
+        if not factura:
+            continue
+        producto = productos.get(linea["product_id"][0], {}) if linea.get("product_id") else {}
         entradas.append({
-            "fecha": capa.get("create_date", "")[:10],
-            "proveedor": proveedores.get(referencia) or documento.get("proveedor", ""),
-            # Si la compra aún no tiene factura registrada, se muestra la orden
-            # de origen para conservar la trazabilidad del movimiento.
-            "factura": documento.get("factura") or referencia,
-            "codigo": producto.get("codigo", ""),
-            "producto": producto.get("descripcion") or _many2one_name(capa.get("product_id")),
-            "cantidad": round(float(capa.get("quantity", 0) or 0), 2),
-            "costo_unitario": round(float(capa.get("unit_cost", 0) or 0), 2),
-            "valor_total": round(float(capa.get("value", 0) or 0), 2),
-            "referencia": referencia,
-            "descripcion": capa.get("description") or "",
+            "fecha": factura.get("invoice_date") or "",
+            "proveedor": _many2one_name(factura.get("partner_id")),
+            "factura": factura.get("ref") or factura.get("name") or "",
+            "codigo": producto.get("default_code") or "",
+            "producto": linea.get("name") or producto.get("display_name") or _many2one_name(linea.get("product_id")),
+            "cantidad": round(float(linea.get("quantity", 0) or 0), 2),
+            "costo_unitario": round(float(linea.get("price_unit", 0) or 0), 2),
+            "valor_total": round(float(linea.get("price_subtotal", 0) or 0), 2),
         })
-    return entradas
+    return entradas, len(facturas)
+
+
+def obtener_entradas_inventario(desde, hasta, limite=200, desplazamiento=0):
+    """Devuelve compras facturadas por proveedor y producto."""
+    if limite < 1 or limite > 500:
+        raise ValueError("El límite debe estar entre 1 y 500.")
+    return _consultar_entradas_compra(desde, hasta, limite, desplazamiento)[0]
 
 
 def obtener_todas_entradas_inventario(desde, hasta):
@@ -294,8 +226,8 @@ def obtener_todas_entradas_inventario(desde, hasta):
     desplazamiento = 0
     limite = 500
     while True:
-        bloque = obtener_entradas_inventario(desde, hasta, limite, desplazamiento)
+        bloque, facturas_obtenidas = _consultar_entradas_compra(desde, hasta, limite, desplazamiento)
         entradas.extend(bloque)
-        if len(bloque) < limite:
+        if facturas_obtenidas < limite:
             return entradas
         desplazamiento += limite

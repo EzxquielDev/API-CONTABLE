@@ -25,7 +25,7 @@
 
     <div class="pestanas-inventario" role="tablist" aria-label="Secciones de inventario">
         <button class="pestana activa" type="button" role="tab" aria-selected="true" aria-controls="panelExistencias" id="tabExistencias">Existencias actuales</button>
-        <button class="pestana" type="button" role="tab" aria-selected="false" aria-controls="panelEntradas" id="tabEntradas">Entradas de productos</button>
+        <button class="pestana" type="button" role="tab" aria-selected="false" aria-controls="panelEntradas" id="tabEntradas">Entradas de compras</button>
     </div>
 
     <section id="panelExistencias" role="tabpanel" aria-labelledby="tabExistencias">
@@ -38,8 +38,8 @@
             </label>
             <button type="submit">Consultar</button>
             <div class="selector-vista" aria-label="Tipo de vista">
-                <button type="button" class="boton-vista" data-vista="lista" aria-pressed="false">Lista</button>
-                <button type="button" class="boton-vista activo" data-vista="cuadricula" aria-pressed="true">Cuadros</button>
+                <button type="button" class="boton-vista" data-tabla="tablaPanel" data-vista="lista" aria-pressed="false">Lista</button>
+                <button type="button" class="boton-vista activo" data-tabla="tablaPanel" data-vista="cuadricula" aria-pressed="true">Cuadros</button>
             </div>
         </form>
 
@@ -60,11 +60,15 @@
         <form class="panel filtros-inventario" id="formularioEntradas">
             <label for="desde">Desde <input id="desde" name="desde" type="date"></label>
             <label for="hasta">Hasta <input id="hasta" name="hasta" type="date"></label>
-            <button type="submit">Consultar entradas</button>
+            <button type="submit">Consultar compras</button>
             <a id="descargarEntradasExcel" class="accion-principal" href="#">Descargar Excel</a>
+            <div class="selector-vista" aria-label="Tipo de vista de entradas">
+                <button type="button" class="boton-vista activo" data-tabla="tablaEntradas" data-vista="lista" aria-pressed="true">Lista</button>
+                <button type="button" class="boton-vista" data-tabla="tablaEntradas" data-vista="cuadricula" aria-pressed="false">Cuadros</button>
+            </div>
         </form>
-        <p id="estadoEntradas">Elige esta sección para consultar las entradas de productos.</p>
-        <section class="tabla-contenedor" id="tablaEntradas" hidden>
+        <p id="estadoEntradas">Elige esta sección para consultar las compras facturadas.</p>
+        <section class="tabla-contenedor vista-lista" id="tablaEntradas" hidden>
             <table><thead><tr><th>Fecha</th><th>Proveedor</th><th>Factura</th><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Unitario</th><th>Total</th></tr></thead><tbody id="filasEntradas"></tbody></table>
         </section>
     </section>
@@ -160,7 +164,7 @@
   }
 
   async function cargarEntradas() {
-    mostrarCarga('Consultando entradas de productos…');
+    mostrarCarga('Consultando entradas de compras…');
     const estado = document.getElementById('estadoEntradas');
     try {
       const filtros = { desde: document.getElementById('desde').value, hasta: document.getElementById('hasta').value };
@@ -168,7 +172,7 @@
       const datos = await consultar('/api/inventario/entradas', filtros);
       const filas = document.getElementById('filasEntradas'); filas.replaceChildren();
       datos.entradas.forEach(entrada => { const fila = document.createElement('tr'); [['fecha', 'Fecha'], ['proveedor', 'Proveedor'], ['factura', 'Factura'], ['codigo', 'Código'], ['producto', 'Descripción'], ['cantidad', 'Cantidad'], ['costo_unitario', 'Unitario'], ['valor_total', 'Total']].forEach(([campo, etiqueta]) => { const valor = campo === 'cantidad' ? numero.format(entrada[campo]) : ['costo_unitario', 'valor_total'].includes(campo) ? moneda.format(entrada[campo]) : (entrada[campo] || '—'); fila.append(celda(valor, etiqueta)); }); filas.append(fila); });
-      if (!datos.entradas.length) { const fila = document.createElement('tr'); const td = celda('No hay entradas de productos en el periodo seleccionado.', ''); td.colSpan = 8; fila.append(td); filas.append(fila); }
+      if (!datos.entradas.length) { const fila = document.createElement('tr'); const td = celda('No hay compras facturadas en el periodo seleccionado.', ''); td.colSpan = 8; fila.append(td); filas.append(fila); }
       estado.textContent = `${datos.entradas.length} entradas encontradas, del ${datos.desde} al ${datos.hasta}.`;
       document.getElementById('tablaEntradas').hidden = false; entradasCargadas = true;
     } catch (error) { estado.textContent = `No se pudo consultar Odoo: ${error.message}`; }
@@ -177,7 +181,7 @@
 
   document.getElementById('formularioInventario').addEventListener('submit', event => { event.preventDefault(); cargarInventario(); });
   document.getElementById('formularioEntradas').addEventListener('submit', event => { event.preventDefault(); cargarEntradas(); });
-  document.querySelectorAll('.boton-vista').forEach(boton => boton.addEventListener('click', () => { const tabla = document.getElementById('tablaPanel'); const lista = boton.dataset.vista === 'lista'; tabla.classList.toggle('vista-lista', lista); tabla.classList.toggle('vista-cuadricula', !lista); document.querySelectorAll('.boton-vista').forEach(control => { const activo = control === boton; control.classList.toggle('activo', activo); control.setAttribute('aria-pressed', activo); }); }));
+  document.querySelectorAll('.boton-vista').forEach(boton => boton.addEventListener('click', () => { const tabla = document.getElementById(boton.dataset.tabla); const lista = boton.dataset.vista === 'lista'; tabla.classList.toggle('vista-lista', lista); tabla.classList.toggle('vista-cuadricula', !lista); document.querySelectorAll(`.boton-vista[data-tabla="${boton.dataset.tabla}"]`).forEach(control => { const activo = control === boton; control.classList.toggle('activo', activo); control.setAttribute('aria-pressed', activo); }); }));
   document.getElementById('tabExistencias').addEventListener('click', () => { document.getElementById('panelExistencias').hidden = false; document.getElementById('panelEntradas').hidden = true; document.getElementById('tabExistencias').classList.add('activa'); document.getElementById('tabEntradas').classList.remove('activa'); document.getElementById('tabExistencias').setAttribute('aria-selected', 'true'); document.getElementById('tabEntradas').setAttribute('aria-selected', 'false'); });
   document.getElementById('tabEntradas').addEventListener('click', () => { document.getElementById('panelExistencias').hidden = true; document.getElementById('panelEntradas').hidden = false; document.getElementById('tabExistencias').classList.remove('activa'); document.getElementById('tabEntradas').classList.add('activa'); document.getElementById('tabExistencias').setAttribute('aria-selected', 'false'); document.getElementById('tabEntradas').setAttribute('aria-selected', 'true'); if (!entradasCargadas) cargarEntradas(); });
   const hoy = new Date(); const hace30 = new Date(hoy); hace30.setDate(hoy.getDate() - 30); const fecha = valor => valor.toISOString().slice(0, 10); document.getElementById('desde').value = fecha(hace30); document.getElementById('hasta').value = fecha(hoy);
