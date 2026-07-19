@@ -1,5 +1,6 @@
 
-from flask import Flask, jsonify, redirect, render_template, url_for
+from flask import Flask, jsonify, redirect, render_template, url_for, request
+
 from blueprints.dashboard import dashboard_bp
 from blueprints.ventas import ventas_bp
 from blueprints.kardex import kardex_bp
@@ -24,10 +25,16 @@ def kardex():
     return render_template("kardex.html", title="Kardex de Productos", api_key=Config.API_KEY)
 
 
+@app.route("/login")
+def login():
+    return render_template("odoo_login.html", title="Login Odoo", api_key=Config.API_KEY)
+
+
 @app.route("/entradas-productos")
 def entradas_productos():
     """Pantalla para consultar las entradas de productos de Odoo."""
     return render_template("api.html", title="Panel API", api_key=Config.API_KEY)
+
 
 
 @app.route("/api")
@@ -59,5 +66,16 @@ def api_estado():
 def inventario():
     return Invetario_ruta()
 
+# Registrar rutas de autenticación Odoo (verificación de credenciales)
+from odoo_auth import register_odoo_auth_routes
+from odoo_logout import register_odoo_logout_routes
+
+register_odoo_auth_routes(app)
+register_odoo_logout_routes(app)
+
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
+
+

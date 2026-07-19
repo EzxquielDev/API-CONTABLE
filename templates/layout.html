@@ -12,6 +12,7 @@
 <body>
     <header class="barra-navegacion">
         <a class="marca" href="{{ url_for('index') }}">API Contable</a>
+        <button type="button" class="btn-secundario" id="btnCerrarSesionHeader" style="margin-left:12px; display:none;">Cerrar sesión</button>
         <nav aria-label="Navegación principal">
             <a class="{{ 'activo' if request.endpoint == 'index' else '' }}" href="{{ url_for('index') }}">Ventas</a>
             <a class="{{ 'activo' if request.endpoint == 'inventario' else '' }}" href="{{ url_for('inventario') }}">Inventario</a>
@@ -54,5 +55,44 @@
         {% endblock %}
     </main>
 
+
+<script>
+(function(){
+  const storageKey={user:'odoo_login_user',pass:'odoo_login_password',verified:'odoo_login_verified'};
+  const isVerified=()=>localStorage.getItem(storageKey.verified)==='1' && (localStorage.getItem(storageKey.user)||'').trim() && (localStorage.getItem(storageKey.pass)||'');
+  const btn=document.getElementById('btnCerrarSesionHeader');
+  const renderLogoutBtn = () => {
+    if(!btn) return;
+    const ok = isVerified();
+    btn.style.display = ok ? '' : 'none';
+  };
+
+  if(btn){
+    btn.addEventListener('click',()=>{
+      localStorage.removeItem(storageKey.user);
+      localStorage.removeItem(storageKey.pass);
+      localStorage.removeItem(storageKey.verified);
+      renderLogoutBtn();
+      window.location.href='/login';
+    });
+  }
+
+  // Render inicial
+  renderLogoutBtn();
+
+  const path=window.location.pathname;
+  const allow = path === '/login' || path.startsWith('/api/odoo/') || path.startsWith('/static/');
+  // Importante: en /login NO forzamos redirect aunque no haya sesión.
+  if(!allow && !isVerified()){
+    window.location.replace('/login');
+  }
+
+  // Si estamos en /login y NO hay sesión, ocultar el logout (por si acaso).
+  // Si hay sesión válida, mostrarlo para permitir cerrar sesión.
+  if(path === '/login'){
+    renderLogoutBtn();
+  }
+})();
+</script>
 </body>
 </html>
