@@ -107,12 +107,13 @@ def api_estado():
 # INVENTARIO
 # =========================
 
-@app.route("/inventario")
-@require_api_key
-def inventario():
 
-    return Invetario_ruta()
 
+def Invetario_ruta():
+    return render_template(
+        "inventario.html",
+        api_key=Config.API_KEY
+    )
 
 # =========================
 # AUTENTICACIÓN ODOO
