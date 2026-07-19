@@ -8,6 +8,14 @@ from blueprints.inventario import inventario_bp
 from Rutas.inventario import Invetario_ruta
 from config import Config
 
+
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY")
+
 app = Flask(__name__)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(ventas_bp)

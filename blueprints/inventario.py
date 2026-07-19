@@ -5,7 +5,6 @@ from datetime import date, timedelta
 from flask import Blueprint, Response, jsonify, request, send_file
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
-
 from auth import require_api_key
 from services.inventario_service import (
     obtener_almacenes,

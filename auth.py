@@ -18,3 +18,6 @@ def require_api_key(f):
             return jsonify({"error": "API key inválida o faltante"}), 401
         return f(*args, **kwargs)
     return decorated
+
+
+
