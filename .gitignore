@@ -1,6 +1,5 @@
 ## Secretos y configuración local
-.env
-.env.*
+
 !.env.example
 config.json
 
