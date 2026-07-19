@@ -105,7 +105,7 @@ def entradas_xlsx():
     libro = Workbook()
     hoja = libro.active
     hoja.title = "Entradas"
-    encabezados = ["Fecha", "Producto", "Cantidad", "Costo unitario", "Valor total", "Referencia"]
+    encabezados = ["Fecha", "Proveedor", "Factura", "Código", "Descripción", "Cantidad", "Unitario", "Total"]
     estilo_encabezado = PatternFill(start_color="2F5597", end_color="2F5597", fill_type="solid")
     for columna, texto in enumerate(encabezados, start=1):
         celda = hoja.cell(row=1, column=columna, value=texto)
@@ -115,16 +115,16 @@ def entradas_xlsx():
 
     for fila, entrada in enumerate(entradas, start=2):
         valores = [
-            entrada.get("fecha"), entrada.get("producto"), entrada.get("cantidad"),
-            entrada.get("costo_unitario"), entrada.get("valor_total"), entrada.get("referencia"),
+            entrada.get("fecha"), entrada.get("proveedor"), entrada.get("factura"), entrada.get("codigo"),
+            entrada.get("producto"), entrada.get("cantidad"), entrada.get("costo_unitario"), entrada.get("valor_total"),
         ]
         for columna, valor in enumerate(valores, start=1):
             hoja.cell(row=fila, column=columna, value=valor)
-        hoja.cell(row=fila, column=3).number_format = "#,##0.00"
-        for columna in (4, 5):
+        hoja.cell(row=fila, column=6).number_format = "#,##0.00"
+        for columna in (7, 8):
             hoja.cell(row=fila, column=columna).number_format = "$#,##0.00"
 
-    for columna, ancho in {"A": 14, "B": 42, "C": 14, "D": 18, "E": 18, "F": 30}.items():
+    for columna, ancho in {"A": 14, "B": 22, "C": 18, "D": 18, "E": 42, "F": 14, "G": 16, "H": 16}.items():
         hoja.column_dimensions[columna].width = ancho
     hoja.freeze_panes = "A2"
 

@@ -8,6 +8,86 @@ def _many2one_name(value):
     return value[1] if value else ""
 
 
+def _datos_documentos_entrada(odoo, capas):
+    """Relaciona cada capa con producto, proveedor y factura de compra.
+
+    Las capas de valoración no guardan directamente el proveedor ni la factura.
+    Se obtiene el documento de origen desde el movimiento, la orden de compra y
+    finalmente la factura de proveedor asociada a esa orden.
+    """
+    producto_ids = list({capa["product_id"][0] for capa in capas if capa.get("product_id")})
+    productos = {}
+    if producto_ids:
+        fichas = odoo.search_read(
+            "product.product",
+            domain=[["id", "in", producto_ids]],
+            fields=["display_name", "default_code"],
+        )
+        productos = {
+            ficha["id"]: {
+                "codigo": ficha.get("default_code") or "",
+                "descripcion": ficha.get("display_name") or "",
+            }
+            for ficha in fichas
+        }
+
+    move_ids = list({capa["stock_move_id"][0] for capa in capas if capa.get("stock_move_id")})
+    movimientos = []
+    if move_ids:
+        movimientos = odoo.search_read(
+            "stock.move",
+            domain=[["id", "in", move_ids]],
+            fields=["origin", "picking_id"],
+        )
+
+    picking_ids = list({movimiento["picking_id"][0] for movimiento in movimientos if movimiento.get("picking_id")})
+    origenes_picking = {}
+    if picking_ids:
+        pickings = odoo.search_read(
+            "stock.picking",
+            domain=[["id", "in", picking_ids]],
+            fields=["origin", "name"],
+        )
+        origenes_picking = {
+            picking["id"]: picking.get("origin") or picking.get("name") or ""
+            for picking in pickings
+        }
+
+    origenes_movimiento = {
+        movimiento["id"]: movimiento.get("origin") or (
+            origenes_picking.get(movimiento["picking_id"][0], "") if movimiento.get("picking_id") else ""
+        )
+        for movimiento in movimientos
+    }
+    ordenes_nombres = list({origen.strip() for origen in origenes_movimiento.values() if origen and origen.strip()})
+    ordenes = []
+    if ordenes_nombres:
+        ordenes = odoo.search_read(
+            "purchase.order",
+            domain=[["name", "in", ordenes_nombres]],
+            fields=["name", "partner_id"],
+        )
+    proveedor_por_orden = {orden["name"]: _many2one_name(orden.get("partner_id")) for orden in ordenes}
+
+    facturas_por_orden = {}
+    if ordenes_nombres:
+        facturas = odoo.search_read(
+            "account.move",
+            domain=[["move_type", "=", "in_invoice"], ["invoice_origin", "in", ordenes_nombres]],
+            fields=["name", "ref", "invoice_origin", "partner_id"],
+        )
+        for factura in facturas:
+            orden = factura.get("invoice_origin")
+            if not orden:
+                continue
+            facturas_por_orden[orden] = {
+                "factura": factura.get("ref") or factura.get("name") or "",
+                "proveedor": _many2one_name(factura.get("partner_id")),
+            }
+
+    return productos, origenes_movimiento, proveedor_por_orden, facturas_por_orden
+
+
 def obtener_almacenes():
     """Almacenes disponibles para filtrar el reporte."""
     odoo = get_odoo_client()
@@ -184,38 +264,28 @@ def obtener_entradas_inventario(desde, hasta, limite=200, desplazamiento=0):
         offset=desplazamiento,
     )
 
-    move_ids = [capa["stock_move_id"][0] for capa in capas if capa.get("stock_move_id")]
-    referencias = {}
-    if move_ids:
-        movimientos = odoo.search_read(
-            "stock.move", domain=[["id", "in", move_ids]], fields=["origin", "picking_id"]
-        )
-        picking_ids = list({movimiento["picking_id"][0] for movimiento in movimientos if movimiento.get("picking_id")})
-        referencias_picking = {}
-        if picking_ids:
-            pickings = odoo.search_read(
-                "stock.picking", domain=[["id", "in", picking_ids]], fields=["origin", "name"]
-            )
-            referencias_picking = {
-                picking["id"]: picking.get("origin") or picking.get("name") for picking in pickings
-            }
-        for movimiento in movimientos:
-            referencias[movimiento["id"]] = movimiento.get("origin") or (
-                referencias_picking.get(movimiento["picking_id"][0]) if movimiento.get("picking_id") else ""
-            )
-
-    return [
-        {
+    productos, referencias, proveedores, facturas = _datos_documentos_entrada(odoo, capas)
+    entradas = []
+    for capa in capas:
+        movimiento_id = capa["stock_move_id"][0] if capa.get("stock_move_id") else None
+        referencia = referencias.get(movimiento_id, "")
+        documento = facturas.get(referencia, {})
+        producto = productos.get(capa["product_id"][0], {}) if capa.get("product_id") else {}
+        entradas.append({
             "fecha": capa.get("create_date", "")[:10],
-            "producto": _many2one_name(capa.get("product_id")),
+            "proveedor": proveedores.get(referencia) or documento.get("proveedor", ""),
+            # Si la compra aún no tiene factura registrada, se muestra la orden
+            # de origen para conservar la trazabilidad del movimiento.
+            "factura": documento.get("factura") or referencia,
+            "codigo": producto.get("codigo", ""),
+            "producto": producto.get("descripcion") or _many2one_name(capa.get("product_id")),
             "cantidad": round(float(capa.get("quantity", 0) or 0), 2),
             "costo_unitario": round(float(capa.get("unit_cost", 0) or 0), 2),
             "valor_total": round(float(capa.get("value", 0) or 0), 2),
-            "referencia": referencias.get(capa["stock_move_id"][0], "") if capa.get("stock_move_id") else "",
+            "referencia": referencia,
             "descripcion": capa.get("description") or "",
-        }
-        for capa in capas
-    ]
+        })
+    return entradas
 
 
 def obtener_todas_entradas_inventario(desde, hasta):

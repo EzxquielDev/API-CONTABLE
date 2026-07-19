@@ -124,10 +124,19 @@
 }
 
 .acciones-inventario .accion-principal,
+.filtros-inventario .accion-principal,
 .filtros-inventario>button {
     background: var(--azul);
     border-color: var(--azul);
     color: #fff;
+}
+
+.filtros-inventario .accion-principal {
+    border: 1px solid var(--azul);
+    border-radius: 6px;
+    padding: 10px 13px;
+    font-size: .95rem;
+    text-decoration: none;
 }
 
 .pestanas-inventario {

@@ -38,6 +38,7 @@ Todos requieren el header `X-API-Key` con el valor que pusiste en `FLASK_API_KEY
 | `GET /api/inventario/reporte.csv` | Reporte completo en CSV |
 | `GET /api/inventario/reporte.xlsx` | Reporte completo en Excel |
 | `GET /api/inventario/entradas?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` | Entradas de producto valorizadas |
+| `GET /api/inventario/entradas.xlsx?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` | Entradas en Excel con proveedor, factura, código y valores |
 
 Prueba rápida con PowerShell:
 

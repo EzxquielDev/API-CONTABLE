@@ -46,7 +46,7 @@
         <p class="estado-consulta" id="estadoEntradas" aria-live="polite">Preparando la consulta…</p>
         <section class="tabla-contenedor" id="tablaEntradas" hidden>
             <table>
-                <thead><tr><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>Costo unitario</th><th>Valor total</th><th>Referencia</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Proveedor</th><th>Factura</th><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Unitario</th><th>Total</th></tr></thead>
                 <tbody id="filasEntradas"></tbody>
             </table>
         </section>
@@ -102,18 +102,20 @@
         const fila = document.createElement('tr');
         const valores = [
           ['fecha', 'Fecha', entrada.fecha || '—'],
-          ['producto', 'Producto', entrada.producto || '—'],
+          ['proveedor', 'Proveedor', entrada.proveedor || '—'],
+          ['factura', 'Factura', entrada.factura || '—'],
+          ['codigo', 'Código', entrada.codigo || '—'],
+          ['producto', 'Descripción', entrada.producto || '—'],
           ['cantidad', 'Cantidad', numero.format(entrada.cantidad)],
-          ['costo_unitario', 'Costo unitario', moneda.format(entrada.costo_unitario)],
-          ['valor_total', 'Valor total', moneda.format(entrada.valor_total)],
-          ['referencia', 'Referencia', entrada.referencia || '—']
+          ['costo_unitario', 'Unitario', moneda.format(entrada.costo_unitario)],
+          ['valor_total', 'Total', moneda.format(entrada.valor_total)]
         ];
         valores.forEach(([, etiqueta, valor]) => fila.append(celda(valor, etiqueta)));
         filas.append(fila);
       });
       if (!datos.entradas.length) {
         const fila = document.createElement('tr'); const td = celda('No hay entradas de productos en el periodo seleccionado.', '');
-        td.colSpan = 6; fila.append(td); filas.append(fila);
+        td.colSpan = 8; fila.append(td); filas.append(fila);
       }
       estado.textContent = `${datos.entradas.length} entradas encontradas, del ${datos.desde} al ${datos.hasta}.`;
       document.getElementById('tablaEntradas').hidden = false;
