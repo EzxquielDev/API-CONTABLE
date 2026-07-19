@@ -3,7 +3,30 @@
 {% block title %}Inventario{% endblock %}
 
 {% block content %}
-<section class="inventario-pagina" data-api-key="{{ api_key }}">
+    <section class="inventario-pagina" data-api-key="{{ api_key }}">
+
+    <div id="loginOdooWrap" style="display:none; max-width:520px; margin: 16px auto;">
+        <div class="panel">
+            <h2>Login Odoo</h2>
+            <p>Para consultar Odoo, ingresa tu correo y contraseña.</p>
+
+            <form id="formLoginOdooPanel" autocomplete="off">
+                <label for="odoo_user">Correo de Odoo</label>
+                <input id="odoo_user" name="odoo_user" type="email" required placeholder="correo@empresa.com" />
+
+                <label for="odoo_password">Contraseña de Odoo</label>
+                <input id="odoo_password" name="odoo_password" type="password" required />
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:16px;">
+                    <button type="submit" class="btn-primario">Entrar</button>
+                    <button type="button" class="btn-secundario" id="btnBorrarLocal">Borrar datos del navegador</button>
+                </div>
+
+                <p id="estadoLoginOdoo" class="estado-consulta" aria-live="polite" style="margin-top:14px;"></p>
+            </form>
+        </div>
+    </div>
+
     <div class="cargando-consulta" id="cargandoConsulta" hidden role="status" aria-live="polite">
         <div class="cargando-contenido">
             <span class="indicador-carga" aria-hidden="true"></span>
@@ -78,6 +101,32 @@
 (() => {
   const raiz = document.querySelector('.inventario-pagina');
   const apiKey = raiz.dataset.apiKey;
+
+  const storageKey = {
+    user: 'odoo_login_user',
+    pass: 'odoo_login_password',
+    verified: 'odoo_login_verified'
+  };
+
+  const getOdooCreds = () => ({
+    user: (localStorage.getItem(storageKey.user) || '').trim(),
+    pass: localStorage.getItem(storageKey.pass) || ''
+  });
+
+  const credsVerified = () => (localStorage.getItem(storageKey.verified) === '1');
+
+  const requireCredsUI = () => {
+    const wrap = document.getElementById('loginOdooWrap');
+    if (!wrap) return true;
+    const creds = getOdooCreds();
+    if (!creds.user || !creds.pass || !credsVerified()) {
+      wrap.style.display = 'block';
+      return false;
+    }
+    wrap.style.display = 'none';
+    return true;
+  };
+
   const cargando = document.getElementById('cargandoConsulta');
   const mensajeCarga = document.getElementById('mensajeCarga');
   const moneda = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
@@ -91,7 +140,15 @@
     return url;
   };
   const consultar = async (ruta, datos) => {
-    const respuesta = await fetch(parametros(ruta, datos));
+    if (!requireCredsUI()) throw new Error('Necesitas iniciar sesión en Odoo para continuar.');
+    const { user, pass } = getOdooCreds();
+    const respuesta = await fetch(parametros(ruta, datos), {
+      headers: {
+        'X-Odoo-User': user,
+        'X-Odoo-Password': pass
+      }
+    });
+
     const cuerpo = await respuesta.json();
     if (!respuesta.ok) throw new Error(cuerpo.error || 'No fue posible consultar Odoo.');
     return cuerpo;
@@ -111,11 +168,17 @@
   }
 
   async function cargarInventario() {
+    if (!requireCredsUI()) {
+      document.getElementById('estado').textContent = 'Necesitas iniciar sesión en Odoo para continuar.';
+      return;
+    }
+
     const almacen_id = document.getElementById('almacen').value;
     const producto = document.getElementById('producto').value.trim();
     mostrarCarga('Consultando existencias…');
     try {
       const [productos, resumen] = await Promise.all([
+
         cargarReporteCompleto({ almacen_id, producto }),
         consultar('/api/inventario/resumen', { almacen_id, producto })
       ]);
@@ -179,7 +242,56 @@
     finally { ocultarCarga(); }
   }
 
+  const formPanel = document.getElementById('formLoginOdooPanel');
+  const btnBorrarLocal = document.getElementById('btnBorrarLocal');
+
+  if (formPanel) {
+    formPanel.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const userInput = document.getElementById('odoo_user');
+      const passInput = document.getElementById('odoo_password');
+      const estadoLogin = document.getElementById('estadoLoginOdoo');
+      try {
+        const resp = await fetch('/api/odoo/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ odoo_user: userInput.value.trim(), odoo_password: passInput.value })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || 'Credenciales inválidas.');
+
+        localStorage.setItem(storageKey.user, userInput.value.trim());
+        localStorage.setItem(storageKey.pass, passInput.value);
+        localStorage.setItem(storageKey.verified, '1');
+
+        const wrap = document.getElementById('loginOdooWrap');
+        if (wrap) wrap.style.display = 'none';
+        estadoLogin.textContent = 'Credenciales verificadas.';
+
+        // Reintentar la última pantalla
+        cargarInventario();
+      } catch (e) {
+        const wrap = document.getElementById('loginOdooWrap');
+        if (wrap) wrap.style.display = 'block';
+        estadoLogin.textContent = e.message;
+        localStorage.removeItem(storageKey.verified);
+      }
+    });
+  }
+
+  if (btnBorrarLocal) {
+    btnBorrarLocal.addEventListener('click', () => {
+      localStorage.removeItem(storageKey.user);
+      localStorage.removeItem(storageKey.pass);
+      localStorage.removeItem(storageKey.verified);
+      const wrap = document.getElementById('loginOdooWrap');
+      if (wrap) wrap.style.display = 'block';
+      if (document.getElementById('estadoLoginOdoo')) document.getElementById('estadoLoginOdoo').textContent = 'Datos borrados.';
+    });
+  }
+
   document.getElementById('formularioInventario').addEventListener('submit', event => { event.preventDefault(); cargarInventario(); });
+
   document.getElementById('formularioEntradas').addEventListener('submit', event => { event.preventDefault(); cargarEntradas(); });
   document.querySelectorAll('.boton-vista').forEach(boton => boton.addEventListener('click', () => { const tabla = document.getElementById(boton.dataset.tabla); const lista = boton.dataset.vista === 'lista'; tabla.classList.toggle('vista-lista', lista); tabla.classList.toggle('vista-cuadricula', !lista); document.querySelectorAll(`.boton-vista[data-tabla="${boton.dataset.tabla}"]`).forEach(control => { const activo = control === boton; control.classList.toggle('activo', activo); control.setAttribute('aria-pressed', activo); }); }));
   document.getElementById('tabExistencias').addEventListener('click', () => { document.getElementById('panelExistencias').hidden = false; document.getElementById('panelEntradas').hidden = true; document.getElementById('tabExistencias').classList.add('activa'); document.getElementById('tabEntradas').classList.remove('activa'); document.getElementById('tabExistencias').setAttribute('aria-selected', 'true'); document.getElementById('tabEntradas').setAttribute('aria-selected', 'false'); });

@@ -26,6 +26,29 @@
     </nav>
 
     <section class="api-modulo" id="entradas" aria-labelledby="tituloEntradas">
+
+        <div id="loginOdooWrap" style="display:none; max-width:520px; margin: 16px auto;">
+            <div class="panel">
+                <h2>Login Odoo</h2>
+                <p>Para consultar Odoo, ingresa tu correo y contraseña.</p>
+
+                <form id="formLoginOdooPanel" autocomplete="off">
+                    <label for="odoo_user">Correo de Odoo</label>
+                    <input id="odoo_user" name="odoo_user" type="email" required placeholder="correo@empresa.com" />
+
+                    <label for="odoo_password">Contraseña de Odoo</label>
+                    <input id="odoo_password" name="odoo_password" type="password" required />
+
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:16px;">
+                        <button type="submit" class="btn-primario">Entrar</button>
+                        <button type="button" class="btn-secundario" id="btnBorrarLocal">Borrar datos del navegador</button>
+                    </div>
+
+                    <p id="estadoLoginOdoo" class="estado-consulta" aria-live="polite" style="margin-top:14px;"></p>
+                </form>
+            </div>
+        </div>
+
         <div class="api-modulo-encabezado">
             <div>
                 <h2 id="tituloEntradas">Entradas de compras</h2>
@@ -61,6 +84,38 @@
 (() => {
   const raiz = document.querySelector('.api-pagina');
   const apiKey = raiz.dataset.apiKey;
+
+  const storageKey = {
+    user: 'odoo_login_user',
+    pass: 'odoo_login_password',
+    verified: 'odoo_login_verified'
+  };
+
+  const getOdooCreds = () => {
+    return {
+      user: (localStorage.getItem(storageKey.user) || '').trim(),
+      pass: localStorage.getItem(storageKey.pass) || ''
+    };
+  };
+
+  const credsVerified = () => (localStorage.getItem(storageKey.verified) === '1');
+
+  const setEstado = (msg) => {
+    if (document.getElementById('estadoLoginOdoo')) document.getElementById('estadoLoginOdoo').textContent = msg;
+  };
+
+  const requireCredsUI = () => {
+    const wrap = document.getElementById('loginOdooWrap');
+    if (!wrap) return true;
+    const creds = getOdooCreds();
+    if (!creds.user || !creds.pass || !credsVerified()) {
+      wrap.style.display = 'block';
+      return false;
+    }
+    wrap.style.display = 'none';
+    return true;
+  };
+
   const cargando = document.getElementById('cargandoConsulta');
   const mensajeCarga = document.getElementById('mensajeCarga');
   const estado = document.getElementById('estadoEntradas');
@@ -87,8 +142,16 @@
   const celda = (texto, etiqueta) => { const td = document.createElement('td'); td.textContent = texto; td.dataset.label = etiqueta; return td; };
 
   async function cargarEntradas() {
+    if (!requireCredsUI()) {
+      estado.textContent = 'Necesitas iniciar sesión en Odoo para continuar.';
+      return;
+    }
+
+    const { user, pass } = getOdooCreds();
+
     mostrarCarga('Consultando entradas de compras…');
     estado.textContent = 'Consultando facturas de proveedor en Odoo…';
+
     actualizarEnlaceExcel();
     try {
       const parametros = new URLSearchParams({
@@ -96,7 +159,15 @@
         desde: document.getElementById('desde').value,
         hasta: document.getElementById('hasta').value
       });
-      const respuesta = await fetch(`/api/inventario/entradas?${parametros}`);
+      const respuesta = await fetch(`/api/inventario/entradas?${parametros}`,
+        {
+          headers: {
+            'X-Odoo-User': user,
+            'X-Odoo-Password': pass
+          }
+        }
+      );
+
       const datos = await respuesta.json();
       if (!respuesta.ok) throw new Error(datos.error || 'No fue posible consultar Odoo.');
 
@@ -128,8 +199,61 @@
     } finally { ocultarCarga(); }
   }
 
+  const formPanel = document.getElementById('formLoginOdooPanel');
+
+  const btnBorrarLocal = document.getElementById('btnBorrarLocal');
+
+  if (formPanel) {
+    formPanel.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const userInput = document.getElementById('odoo_user');
+      const passInput = document.getElementById('odoo_password');
+      const estadoLogin = document.getElementById('estadoLoginOdoo');
+      try {
+        const resp = await fetch('/api/odoo/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ odoo_user: userInput.value.trim(), odoo_password: passInput.value })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || 'Credenciales inválidas.');
+
+        localStorage.setItem(storageKey.user, userInput.value.trim());
+        localStorage.setItem(storageKey.pass, passInput.value);
+        localStorage.setItem(storageKey.verified, '1');
+
+        document.getElementById('loginOdooWrap').style.display = 'none';
+        estadoLogin.textContent = 'Credenciales verificadas.';
+        cargarEntradas();
+      } catch (e) {
+        if (document.getElementById('loginOdooWrap')) document.getElementById('loginOdooWrap').style.display = 'block';
+        estadoLogin.textContent = e.message;
+        localStorage.removeItem(storageKey.verified);
+      }
+    });
+  }
+
+  if (btnBorrarLocal) {
+    btnBorrarLocal.addEventListener('click', () => {
+      localStorage.removeItem(storageKey.user);
+      localStorage.removeItem(storageKey.pass);
+      localStorage.removeItem(storageKey.verified);
+      if (document.getElementById('loginOdooWrap')) document.getElementById('loginOdooWrap').style.display = 'block';
+      if (document.getElementById('estadoLoginOdoo')) document.getElementById('estadoLoginOdoo').textContent = 'Datos borrados.';
+      estado.textContent = '';
+    });
+  }
+
   document.getElementById('formularioEntradas').addEventListener('submit', evento => { evento.preventDefault(); cargarEntradas(); });
+
+  // Si el usuario ya está verificado, ocultar login
+  if (requireCredsUI()) {
+    const wrap = document.getElementById('loginOdooWrap');
+    if (wrap) wrap.style.display = 'none';
+  }
+
   document.getElementById('desde').addEventListener('change', actualizarEnlaceExcel);
+
   document.getElementById('hasta').addEventListener('change', actualizarEnlaceExcel);
   document.querySelectorAll('.boton-vista').forEach(boton => boton.addEventListener('click', () => {
     const lista = boton.dataset.vista === 'lista';
