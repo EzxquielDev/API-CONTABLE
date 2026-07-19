@@ -132,6 +132,18 @@ def obtener_kardex(fecha_desde, fecha_hasta, codigo_producto=None):
                     if precio is not None:
                         precios_venta_por_capa[move_id if move_id else id(c)] = precio
 
+    # --- Respaldo: precio de lista configurado en la ficha del producto ---
+    # Se usa solo cuando no se pudo encontrar el precio exacto de la factura.
+    precio_lista_por_producto = {}
+    productos_ids_todos = list({c["product_id"][0] for c in capas})
+    if productos_ids_todos:
+        fichas = odoo.search_read(
+            "product.product",
+            domain=[["id", "in", productos_ids_todos]],
+            fields=["list_price"],
+        )
+        precio_lista_por_producto = {f["id"]: f["list_price"] for f in fichas}
+
     # --- Armamos el Kardex por producto, con saldo corriendo ---
     productos = {}
     orden_productos = []
@@ -170,7 +182,13 @@ def obtener_kardex(fecha_desde, fecha_hasta, codigo_producto=None):
         saldo_corrido[pid] += c["value"]
 
         clave_precio = c["stock_move_id"][0] if c.get("stock_move_id") else id(c)
-        precio_venta = precios_venta_por_capa.get(clave_precio) if not es_entrada else None
+        precio_venta = None
+        precio_es_estimado = False
+        if not es_entrada:
+            precio_venta = precios_venta_por_capa.get(clave_precio)
+            if precio_venta is None:
+                precio_venta = precio_lista_por_producto.get(pid)
+                precio_es_estimado = precio_venta is not None
 
         productos[pid]["movimientos"].append({
             "fecha": c["create_date"][:10] if c.get("create_date") else "",
@@ -179,6 +197,7 @@ def obtener_kardex(fecha_desde, fecha_hasta, codigo_producto=None):
             "costo_total": round(c["value"], 2) if es_entrada else None,
             "qty_salida": round(-cantidad, 2) if not es_entrada else 0,
             "precio_venta": round(precio_venta, 2) if precio_venta else None,
+            "precio_estimado": precio_es_estimado,
             "existencia": round(existencia_corrida[pid], 2),
             "saldo": round(saldo_corrido[pid], 2),
             "referencia": origenes_por_move.get(

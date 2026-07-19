@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Global.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Inventario.css')}}">  
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/facturacion.css')}}">  
     {% block extra_head %}{% endblock %}
     <title>{{ title }}</title>
 </head>
@@ -12,8 +13,9 @@
     <header class="barra-navegacion">
         <a class="marca" href="{{ url_for('index') }}">API Contable</a>
         <nav aria-label="Navegación principal">
-            <a class="{{ 'activo' if request.endpoint == 'index' else '' }}" href="{{ url_for('index') }}">Inicio</a>
+            <a class="{{ 'activo' if request.endpoint == 'index' else '' }}" href="{{ url_for('index') }}">Ventas</a>
             <a class="{{ 'activo' if request.endpoint == 'inventario' else '' }}" href="{{ url_for('inventario') }}">Inventario</a>
+            <a class="{{ 'activo' if request.endpoint == 'kardex' else '' }}" href="{{ url_for('kardex') }}">Kardex</a>
             <a class="{{ 'activo' if request.endpoint == 'entradas_productos' else '' }}" href="{{ url_for('entradas_productos') }}">Entradas</a>
             <details class="menu-api {{ 'activo' if request.endpoint in ['api_info', 'api_estado'] else '' }}">
                 <summary>API</summary>

@@ -17,7 +17,11 @@ app.register_blueprint(inventario_bp)
 
 @app.route("/")
 def index():
-    return render_template("index.html", title="Reporte de Ventas", api_key=Config.API_KEY)
+    return render_template("facturacion.html", title="Reporte de Ventas", api_key=Config.API_KEY)
+
+@app.route("/kardex")
+def kardex():
+    return render_template("kardex.html", title="Kardex de Productos", api_key=Config.API_KEY)
 
 
 @app.route("/entradas-productos")

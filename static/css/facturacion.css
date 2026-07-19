@@ -1,0 +1,100 @@
+
+body { 
+    font-family: Arial, sans-serif; 
+    max-width: 900px; 
+    margin: 40px auto; 
+    background: #f5f6f8; 
+    color: #222; 
+  }
+h1 { 
+    font-size: 22px; 
+  }
+  .panel { 
+    background: white; 
+    border-radius: 8px; 
+    padding: 20px; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+    margin-bottom: 20px; 
+  }
+label { 
+    font-size: 13px; 
+    color: #555; 
+    display: block; 
+    margin-bottom: 4px; 
+  }
+input[type="date"] { 
+    padding: 8px; 
+    border: 1px solid #ccc; 
+    border-radius: 4px; 
+    font-size: 14px; 
+  }
+.filtros { 
+    display: flex; 
+    gap: 16px; 
+    align-items: end; 
+    flex-wrap: wrap; 
+  }
+button { 
+    padding: 9px 18px; 
+    border: none; 
+    border-radius: 4px; 
+    font-size: 14px; 
+    cursor: pointer; 
+  }
+.btn-primario { 
+    background: #2F5597; 
+    color: white; 
+  }
+.btn-secundario { 
+    background: #2e7d32; 
+    color: white; 
+  }
+button:disabled { 
+    opacity: 0.5; 
+    cursor: not-allowed; 
+  }
+.totales { 
+    display: flex; 
+    gap: 16px; 
+    flex-wrap: wrap; 
+  }
+.tarjeta { 
+    flex: 1; 
+    min-width: 160px; 
+    background: #eef2f8; 
+    border-radius: 6px; 
+    padding: 14px; 
+  }
+.tarjeta .valor { 
+    font-size: 20px; 
+    font-weight: bold; 
+    color: #2F5597; 
+  }
+.tarjeta .etiqueta { 
+    font-size: 12px; 
+    color: #666; 
+  }
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    font-size: 13px; 
+    margin-top: 10px; 
+  }
+th, td { 
+    text-align: left; 
+    padding: 8px; 
+    border-bottom: 1px solid #eee; 
+  }
+th { 
+    background: #2F5597; 
+    color: white; 
+  }
+#estado { 
+    font-size: 13px; 
+    color: #888; 
+    margin-top: 8px; 
+  }
+.error { 
+    color: #c62828; 
+  }
+

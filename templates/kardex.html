@@ -1,0 +1,132 @@
+{% extends "layout.html" %}
+
+{% block title %}Kardex de Inventario{% endblock %}
+{% block content %}
+
+<h1>📦 Kardex de Inventario</h1>
+
+<div class="panel">
+  <div class="filtros">
+    <div>
+      <label for="desde">Desde</label>
+      <input type="date" id="desde">
+    </div>
+    <div>
+      <label for="hasta">Hasta</label>
+      <input type="date" id="hasta">
+    </div>
+    <div>
+      <label for="codigoProducto">Código (opcional)</label>
+      <input type="text" id="codigoProducto" placeholder="ej. 265222-007"
+        style="padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
+    </div>
+    <button class="btn-primario" id="btnKardex" onclick="verKardex()">Generar kardex</button>
+    <button class="btn-secundario" id="btnKardexExcel" onclick="descargarKardexExcel()">⬇ Kardex a Excel</button>
+  </div>
+  <div id="estado"></div>
+</div>
+
+<div class="panel" id="panelKardex" style="display:none;">
+  <p style="font-size:12px;color:#888;">* Precio estimado (tomado del precio de lista del producto, no se encontró la factura exacta)</p>
+  <div id="cuerpoKardex"></div>
+</div>
+
+<script>
+  const API_KEY = "{{ api_key }}";
+
+  // Por defecto: primer día del mes actual hasta hoy
+  const hoy = new Date();
+  const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  document.getElementById("desde").value = primerDia.toISOString().slice(0, 10);
+  document.getElementById("hasta").value = hoy.toISOString().slice(0, 10);
+
+  function formatoMoneda(valor) {
+    return "$" + Number(valor).toLocaleString("es-SV", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  async function verKardex() {
+    const desde = document.getElementById("desde").value;
+    const hasta = document.getElementById("hasta").value;
+    const codigo = document.getElementById("codigoProducto").value.trim();
+    const estado = document.getElementById("estado");
+    const btn = document.getElementById("btnKardex");
+
+    if (!desde || !hasta) {
+      estado.innerHTML = '<span class="error">Selecciona ambas fechas.</span>';
+      return;
+    }
+
+    btn.disabled = true;
+    estado.textContent = "Calculando kardex (puede tardar si son muchos productos)...";
+
+    try {
+      let url = `/api/kardex?desde=${desde}&hasta=${hasta}`;
+      if (codigo) url += `&codigo=${encodeURIComponent(codigo)}`;
+
+      const resp = await fetch(url, { headers: { "X-API-Key": API_KEY } });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        estado.innerHTML = `<span class="error">Error: ${data.error || "desconocido"}</span>`;
+        return;
+      }
+      if (data.aviso) {
+        estado.innerHTML = `<span class="error">${data.aviso}</span>`;
+        return;
+      }
+
+      const contenedor = document.getElementById("cuerpoKardex");
+      contenedor.innerHTML = "";
+
+      if (data.productos.length === 0) {
+        contenedor.innerHTML = "<p>No hay movimientos de inventario en ese rango.</p>";
+      }
+
+      data.productos.forEach(p => {
+        const bloque = document.createElement("div");
+        bloque.style.marginBottom = "24px";
+        let filas = `<tr style="font-style:italic;color:#666;">
+          <td></td><td>${p.codigo}</td><td>${p.descripcion}</td><td></td><td></td><td></td><td></td><td></td>
+          <td>${p.existencia_inicial}</td><td>${formatoMoneda(p.saldo_inicial)}</td><td>saldo inicial</td></tr>`;
+        p.movimientos.forEach(m => {
+          filas += `<tr>
+            <td>${m.fecha}</td><td>${p.codigo}</td><td>${p.descripcion}</td>
+            <td>${m.qty_entrada || ""}</td>
+            <td>${m.costo_unitario != null ? formatoMoneda(m.costo_unitario) : ""}</td>
+            <td>${m.costo_total != null ? formatoMoneda(m.costo_total) : ""}</td>
+            <td>${m.qty_salida || ""}</td>
+            <td>${m.precio_venta != null ? formatoMoneda(m.precio_venta) + (m.precio_estimado ? " *" : "") : ""}</td>
+            <td>${m.existencia}</td><td>${formatoMoneda(m.saldo)}</td><td>${m.referencia}</td></tr>`;
+        });
+        bloque.innerHTML = `<table>
+          <thead><tr><th>Fecha</th><th>Código</th><th>Descripción</th><th>Qty entrada</th>
+          <th>Costo unit.</th><th>Costo total</th><th>Qty salida</th><th>Precio venta</th>
+          <th>Existencia</th><th>Saldo</th><th>Referencia</th></tr></thead>
+          <tbody>${filas}</tbody></table>`;
+        contenedor.appendChild(bloque);
+      });
+
+      document.getElementById("panelKardex").style.display = "block";
+      estado.textContent = `Listo — ${data.productos.length} productos con movimiento.`;
+    } catch (e) {
+      estado.innerHTML = `<span class="error">Error de conexión: ${e.message}</span>`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function descargarKardexExcel() {
+    const desde = document.getElementById("desde").value;
+    const hasta = document.getElementById("hasta").value;
+    const codigo = document.getElementById("codigoProducto").value.trim();
+    if (!desde || !hasta) {
+      document.getElementById("estado").innerHTML = '<span class="error">Selecciona ambas fechas.</span>';
+      return;
+    }
+    let url = `/api/kardex.xlsx?desde=${desde}&hasta=${hasta}&api_key=${API_KEY}`;
+    if (codigo) url += `&codigo=${encodeURIComponent(codigo)}`;
+    window.location.href = url;
+  }
+</script>
+
+{% endblock %}

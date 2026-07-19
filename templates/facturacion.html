@@ -1,0 +1,140 @@
+{% extends "layout.html" %}
+
+{% block title %}Reporte de Ventas{% endblock %}
+{% block content %}
+
+<h1>📊 Reporte de Ventas</h1>
+
+<div class="panel">
+  <div class="filtros">
+    <div>
+      <label for="desde">Desde</label>
+      <input type="date" id="desde">
+    </div>
+    <div>
+      <label for="hasta">Hasta</label>
+      <input type="date" id="hasta">
+    </div>
+    <button class="btn-primario" id="btnGenerar" onclick="generarReporte()">Generar reporte</button>
+    <button class="btn-secundario" id="btnExcel" onclick="descargarExcel()" disabled>⬇ Descargar Excel</button>
+  </div>
+  <div id="estado"></div>
+</div>
+
+<div class="panel" id="panelTotales" style="display:none;">
+  <div class="totales">
+    <div class="tarjeta">
+      <div class="etiqueta">Total facturado (con IVA)</div>
+      <div class="valor" id="totalConIva">-</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta">Total ventas sin IVA</div>
+      <div class="valor" id="totalSinIva">-</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta">Total IVA</div>
+      <div class="valor" id="totalIva">-</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta"># Facturas</div>
+      <div class="valor" id="cantidadFacturas">-</div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panelDetalle" style="display:none;">
+  <table>
+    <thead>
+      <tr>
+        <th>Número</th>
+        <th>Cliente</th>
+        <th>Fecha</th>
+        <th>Sin IVA</th>
+        <th>IVA</th>
+        <th>Total</th>
+        <th>Estado</th>
+      </tr>
+    </thead>
+    <tbody id="cuerpoTabla"></tbody>
+  </table>
+</div>
+
+<script>
+  const API_KEY = "{{ api_key }}";
+
+  // Por defecto: primer día del mes actual hasta hoy
+  const hoy = new Date();
+  const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  document.getElementById("desde").value = primerDia.toISOString().slice(0, 10);
+  document.getElementById("hasta").value = hoy.toISOString().slice(0, 10);
+
+  function formatoMoneda(valor) {
+    return "$" + Number(valor).toLocaleString("es-SV", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  async function generarReporte() {
+    const desde = document.getElementById("desde").value;
+    const hasta = document.getElementById("hasta").value;
+    const estado = document.getElementById("estado");
+    const btn = document.getElementById("btnGenerar");
+
+    if (!desde || !hasta) {
+      estado.innerHTML = '<span class="error">Selecciona ambas fechas.</span>';
+      return;
+    }
+
+    btn.disabled = true;
+    estado.textContent = "Consultando Odoo...";
+
+    try {
+      const resp = await fetch(`/api/ventas/reporte?desde=${desde}&hasta=${hasta}`, {
+        headers: { "X-API-Key": API_KEY }
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        estado.innerHTML = `<span class="error">Error: ${data.error || "desconocido"}</span>`;
+        return;
+      }
+
+      document.getElementById("totalConIva").textContent = formatoMoneda(data.total_con_iva);
+      document.getElementById("totalSinIva").textContent = formatoMoneda(data.total_sin_iva);
+      document.getElementById("totalIva").textContent = formatoMoneda(data.total_iva);
+      document.getElementById("cantidadFacturas").textContent = data.cantidad_facturas;
+      document.getElementById("panelTotales").style.display = "block";
+
+      const cuerpo = document.getElementById("cuerpoTabla");
+      cuerpo.innerHTML = "";
+      data.facturas.forEach(f => {
+        const fila = document.createElement("tr");
+        fila.innerHTML = `
+          <td>${f.numero}</td>
+          <td>${f.cliente}</td>
+          <td>${f.fecha}</td>
+          <td>${formatoMoneda(f.subtotal_sin_iva)}</td>
+          <td>${formatoMoneda(f.iva)}</td>
+          <td>${formatoMoneda(f.total)}</td>
+          <td>${f.estado_pago}</td>`;
+        cuerpo.appendChild(fila);
+      });
+      document.getElementById("panelDetalle").style.display = "block";
+
+      document.getElementById("btnExcel").disabled = false;
+      estado.textContent = `Listo — ${data.cantidad_facturas} facturas encontradas.`;
+    } catch (e) {
+      estado.innerHTML = `<span class="error">Error de conexión: ${e.message}</span>`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function descargarExcel() {
+    const desde = document.getElementById("desde").value;
+    const hasta = document.getElementById("hasta").value;
+    // Como la descarga es una navegación normal del navegador (no fetch),
+    // pasamos la API key como query param para este endpoint específico.
+    window.location.href = `/api/ventas/reporte.xlsx?desde=${desde}&hasta=${hasta}&api_key=${API_KEY}`;
+  }
+</script>
+
+{% endblock %}

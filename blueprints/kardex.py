@@ -90,7 +90,9 @@ def kardex_xlsx():
             ws.cell(row=fila, column=5, value=m["costo_unitario"]).font = font_normal
             ws.cell(row=fila, column=6, value=m["costo_total"]).font = font_normal
             ws.cell(row=fila, column=7, value=m["qty_salida"] or None).font = font_normal
-            ws.cell(row=fila, column=8, value=m["precio_venta"]).font = font_normal
+            ws.cell(row=fila, column=8, value=m["precio_venta"]).font = (
+                Font(name="Arial", size=10, italic=True, color="9C6500") if m.get("precio_estimado") else font_normal
+            )
             ws.cell(row=fila, column=9, value=m["existencia"]).font = font_normal
             ws.cell(row=fila, column=10, value=m["saldo"]).font = font_normal
             ws.cell(row=fila, column=11, value=m["referencia"]).font = font_normal
