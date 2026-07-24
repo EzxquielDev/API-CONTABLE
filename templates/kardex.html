@@ -3,10 +3,12 @@
 {% block title %}Kardex de Inventario{% endblock %}
 {% block content %}
 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/kardex.css') }}">
+
 <h1>📦 Kardex de Inventario</h1>
 
-<div class="panel">
-  <div class="filtros">
+<div class="kx-panel">
+  <div class="kx-filtros">
     <div>
       <label for="desde">Desde</label>
       <input type="date" id="desde">
@@ -17,21 +19,20 @@
     </div>
     <div>
       <label for="codigoProducto">Código (opcional)</label>
-      <input type="text" id="codigoProducto" placeholder="ej. 265222-007"
-        style="padding:8px;border:1px solid #ccc;border-radius:4px;font-size:14px;">
+      <input type="text" id="codigoProducto" placeholder="ej. 265222-007" class="kx-input">
     </div>
-    <button class="btn-primario" id="btnKardex" onclick="verKardex()">Generar kardex</button>
-    <button class="btn-secundario" id="btnKardexExcel" onclick="descargarKardexExcel()">⬇ Kardex a Excel</button>
-    <div class="selector-vista" aria-label="Tipo de vista del kardex">
-      <button type="button" class="boton-vista activo" data-vista="lista" aria-pressed="true">Lista</button>
-      <button type="button" class="boton-vista" data-vista="cuadricula" aria-pressed="false">Cuadros</button>
+    <button class="kx-btn-primario" id="btnKardex" onclick="verKardex()">Generar kardex</button>
+    <button class="kx-btn-secundario" id="btnKardexExcel" onclick="descargarKardexExcel()">⬇ Kardex a Excel</button>
+    <div class="kx-selector-vista" aria-label="Tipo de vista del kardex">
+      <button type="button" class="kx-boton-vista kx-activo" data-vista="lista" aria-pressed="true">Lista</button>
+      <button type="button" class="kx-boton-vista" data-vista="cuadricula" aria-pressed="false">Cuadros</button>
     </div>
   </div>
-  <div id="estado"></div>
+  <div id="estado" class="kx-estado"></div>
 </div>
 
-<div class="panel" id="panelKardex" style="display:none;">
-  <p style="font-size:12px;color:#888;">* Precio estimado (tomado del precio de lista del producto, no se encontró la factura exacta)</p>
+<div class="kx-panel" id="panelKardex" style="display:none;">
+  <p class="kx-nota">* Precio estimado (tomado del precio de lista del producto, no se encontró la factura exacta)</p>
   <div id="cuerpoKardex"></div>
 </div>
 
@@ -62,7 +63,7 @@
     const btn = document.getElementById("btnKardex");
 
     if (!desde || !hasta) {
-      estado.innerHTML = '<span class="error">Selecciona ambas fechas.</span>';
+      estado.innerHTML = '<span class="kx-error">Selecciona ambas fechas.</span>';
       return;
     }
 
@@ -77,11 +78,11 @@
       const data = await resp.json();
 
       if (!resp.ok) {
-        estado.innerHTML = `<span class="error">Error: ${data.error || "desconocido"}</span>`;
+        estado.innerHTML = `<span class="kx-error">Error: ${data.error || "desconocido"}</span>`;
         return;
       }
       if (data.aviso) {
-        estado.innerHTML = `<span class="error">${data.aviso}</span>`;
+        estado.innerHTML = `<span class="kx-error">${data.aviso}</span>`;
         return;
       }
 
@@ -94,10 +95,10 @@
 
       data.productos.forEach(p => {
         const bloque = document.createElement("div");
-        bloque.className = `tabla-contenedor vista-${vistaKardex}`;
+        bloque.className = `kx-tabla kx-vista-${vistaKardex}`;
         bloque.style.marginBottom = "24px";
-        let filas = `<tr style="font-style:italic;color:#666;">
-          <td data-label="Fecha">${SIN_DATOS}</td><td data-label="Código">${mostrarTexto(p.codigo)}</td><td data-label="Descripción">${mostrarTexto(p.descripcion)}</td><td data-label="Qty entrada">${SIN_DATOS}</td><td data-label="Costo unit.">${SIN_DATOS}</td><td data-label="Costo total">${SIN_DATOS}</td><td data-label="Qty salida">${SIN_DATOS}</td><td data-label="Precio venta">${SIN_DATOS}</td>
+        let filas = `<tr class="kx-fila-inicial">
+          <td data-label="Fecha">${SIN_DATOS}</td><td data-label="Código">${mostrarTexto(p.codigo)}</td><td data-label="Descripción">${mostrarTexto(p.descripcion)}</td><td data-label="Qty entrada">${SIN_DATOS}</td><td data-label="Costo unit.">${SIN_DATOS}</td><td data-label="Costo total">${SIN_DATOS}</td><td data-label="Qty salida">${SIN_DATOS}</td><td data-label="Costo de venta (total)">${SIN_DATOS}</td>
           <td data-label="Existencia">${mostrarTexto(p.existencia_inicial)}</td><td data-label="Saldo">${mostrarMoneda(p.saldo_inicial)}</td><td data-label="Referencia">saldo inicial</td></tr>`;
         p.movimientos.forEach(m => {
           filas += `<tr>
@@ -106,12 +107,12 @@
             <td data-label="Costo unit.">${mostrarMoneda(m.costo_unitario)}</td>
             <td data-label="Costo total">${mostrarMoneda(m.costo_total)}</td>
             <td data-label="Qty salida">${mostrarCantidad(m.qty_salida)}</td>
-            <td data-label="Precio venta">${m.precio_venta != null ? formatoMoneda(m.precio_venta) + (m.precio_estimado ? " *" : "") : SIN_DATOS}</td>
+            <td data-label="Costo de venta (total)">${m.precio_venta != null ? formatoMoneda(m.precio_venta) + (m.precio_estimado ? ' <span class="kx-estimado">*</span>' : "") : SIN_DATOS}</td>
             <td data-label="Existencia">${mostrarTexto(m.existencia)}</td><td data-label="Saldo">${mostrarMoneda(m.saldo)}</td><td data-label="Referencia">${mostrarTexto(m.referencia)}</td></tr>`;
         });
         bloque.innerHTML = `<table>
           <thead><tr><th>Fecha</th><th>Código</th><th>Descripción</th><th>Qty entrada</th>
-          <th>Costo unit.</th><th>Costo total</th><th>Qty salida</th><th>Precio venta</th>
+          <th>Costo unit.</th><th>Costo total</th><th>Qty salida</th><th>Costo de venta (total)</th>
           <th>Existencia</th><th>Saldo</th><th>Referencia</th></tr></thead>
           <tbody>${filas}</tbody></table>`;
         contenedor.appendChild(bloque);
@@ -120,7 +121,7 @@
       document.getElementById("panelKardex").style.display = "block";
       estado.textContent = `Listo — ${data.productos.length} productos con movimiento.`;
     } catch (e) {
-      estado.innerHTML = `<span class="error">Error de conexión: ${e.message}</span>`;
+      estado.innerHTML = `<span class="kx-error">Error de conexión: ${e.message}</span>`;
     } finally {
       btn.disabled = false;
     }
@@ -131,7 +132,7 @@
     const hasta = document.getElementById("hasta").value;
     const codigo = document.getElementById("codigoProducto").value.trim();
     if (!desde || !hasta) {
-      document.getElementById("estado").innerHTML = '<span class="error">Selecciona ambas fechas.</span>';
+      document.getElementById("estado").innerHTML = '<span class="kx-error">Selecciona ambas fechas.</span>';
       return;
     }
     let url = `/api/kardex.xlsx?desde=${desde}&hasta=${hasta}&api_key=${API_KEY}`;
@@ -139,11 +140,11 @@
     window.location.href = url;
   }
 
-  document.querySelectorAll(".boton-vista").forEach(boton => boton.addEventListener("click", () => {
+  document.querySelectorAll(".kx-boton-vista").forEach(boton => boton.addEventListener("click", () => {
     const lista = boton.dataset.vista === "lista";
     vistaKardex = boton.dataset.vista;
-    document.querySelectorAll("#cuerpoKardex .tabla-contenedor").forEach(tabla => { tabla.classList.toggle("vista-lista", lista); tabla.classList.toggle("vista-cuadricula", !lista); });
-    document.querySelectorAll(".boton-vista").forEach(control => { const activo = control === boton; control.classList.toggle("activo", activo); control.setAttribute("aria-pressed", activo); });
+    document.querySelectorAll("#cuerpoKardex .kx-tabla").forEach(tabla => { tabla.classList.toggle("kx-vista-lista", lista); tabla.classList.toggle("kx-vista-cuadricula", !lista); });
+    document.querySelectorAll(".kx-boton-vista").forEach(control => { const activo = control === boton; control.classList.toggle("kx-activo", activo); control.setAttribute("aria-pressed", activo); });
   }));
 </script>
 

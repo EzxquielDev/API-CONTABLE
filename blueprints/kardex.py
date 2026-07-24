@@ -64,7 +64,7 @@ def kardex_xlsx():
     ws.merge_cells("A1:K1")
 
     encabezados = ["FECHA", "CODIGO", "DESCRIPCION", "Qty entrada", "costo unitario",
-                    "costo total", "Qty salida", "precio de venta", "existencia", "saldo", "referencia"]
+                    "costo total", "Qty salida", "costo de venta (total)", "existencia", "saldo", "referencia"]
     fila = 3
     for col, texto in enumerate(encabezados, start=1):
         celda = ws.cell(row=fila, column=col, value=texto)

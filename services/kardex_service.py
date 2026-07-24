@@ -1,5 +1,47 @@
 from odoo_client import get_odoo_client
 
+# Datos EXACTOS de la bodega en Odoo (Inventario > Configuración > Almacenes).
+# En Odoo el almacén se muestra como "CODIGO/Nombre", ej: "BCE/Bodega Central Bicimania".
+BODEGA_CENTRAL_NOMBRE = "Bodega Central Bicimania"
+BODEGA_CENTRAL_CODIGO = "BCE"
+
+_cache_ubicaciones_bodega = {}
+
+
+def _obtener_ubicaciones_bodega(odoo, nombre_bodega, codigo_bodega=None):
+    """Devuelve el set de IDs de stock.location que pertenecen a una bodega
+    (su ubicación raíz y todas las hijas: stock, entrada, salida, etc.).
+    Busca por nombre exacto o por código, lo que encuentre primero."""
+    clave_cache = f"{nombre_bodega}|{codigo_bodega}"
+    if clave_cache in _cache_ubicaciones_bodega:
+        return _cache_ubicaciones_bodega[clave_cache]
+
+    domain = [["name", "=", nombre_bodega]]
+    if codigo_bodega:
+        domain = ["|", ["code", "=", codigo_bodega], ["name", "=", nombre_bodega]]
+
+    bodegas = odoo.search_read(
+        "stock.warehouse",
+        domain=domain,
+        fields=["id", "name", "code", "view_location_id"],
+        limit=1,
+    )
+    if not bodegas:
+        raise ValueError(
+            f"No se encontró ninguna bodega con nombre '{nombre_bodega}' ni código "
+            f"'{codigo_bodega}' en Odoo. Verifica en Inventario > Configuración > Almacenes."
+        )
+
+    view_location_id = bodegas[0]["view_location_id"][0]
+    ubicaciones = odoo.search_read(
+        "stock.location",
+        domain=[["id", "child_of", view_location_id]],
+        fields=["id"],
+    )
+    ids = {u["id"] for u in ubicaciones}
+    _cache_ubicaciones_bodega[clave_cache] = ids
+    return ids
+
 
 def _extraer_codigo_nombre(display_name):
     """Odoo suele mostrar el producto como '[CODIGO] Nombre'. Separamos ambos."""
@@ -21,8 +63,11 @@ def _buscar_producto_id_por_codigo(odoo, codigo):
     return resultados[0]["id"] if resultados else None
 
 
-def obtener_kardex(fecha_desde, fecha_hasta, codigo_producto=None):
+def obtener_kardex(fecha_desde, fecha_hasta, codigo_producto=None, bodega=None, codigo_bodega=None):
     odoo = get_odoo_client()
+    nombre_bodega = bodega or BODEGA_CENTRAL_NOMBRE
+    cod_bodega = codigo_bodega or (BODEGA_CENTRAL_CODIGO if not bodega else None)
+    ubicaciones_bodega = _obtener_ubicaciones_bodega(odoo, nombre_bodega, cod_bodega)
 
     domain_producto = []
     if codigo_producto:
@@ -36,16 +81,8 @@ def obtener_kardex(fecha_desde, fecha_hasta, codigo_producto=None):
     capas_previas = odoo.search_read(
         "stock.valuation.layer",
         domain=domain_producto + [["create_date", "<", fecha_desde]],
-        fields=["product_id", "quantity", "value"],
+        fields=["product_id", "quantity", "value", "stock_move_id"],
     )
-
-    saldo_inicial = {}
-    for c in capas_previas:
-        pid, nombre = c["product_id"]
-        if pid not in saldo_inicial:
-            saldo_inicial[pid] = {"nombre": nombre, "cantidad": 0.0, "valor": 0.0}
-        saldo_inicial[pid]["cantidad"] += c["quantity"]
-        saldo_inicial[pid]["valor"] += c["value"]
 
     # --- Movimientos dentro del rango solicitado ---
     capas = odoo.search_read(
@@ -58,6 +95,43 @@ def obtener_kardex(fecha_desde, fecha_hasta, codigo_producto=None):
                  "description", "stock_move_id"],
         order="product_id asc, create_date asc",
     )
+
+    # --- Filtramos ambas listas para quedarnos SOLO con capas cuyo movimiento
+    # entra o sale de la bodega solicitada (por defecto, Bodega Central) ---
+    todos_move_ids = list({
+        c["stock_move_id"][0] for c in (capas_previas + capas) if c.get("stock_move_id")
+    })
+    ubicacion_por_move = {}
+    if todos_move_ids:
+        info_moves = odoo.search_read(
+            "stock.move",
+            domain=[["id", "in", todos_move_ids]],
+            fields=["location_id", "location_dest_id"],
+        )
+        for m in info_moves:
+            loc_o = m["location_id"][0] if m.get("location_id") else None
+            loc_d = m["location_dest_id"][0] if m.get("location_dest_id") else None
+            ubicacion_por_move[m["id"]] = (loc_o, loc_d)
+
+    def _es_de_la_bodega(capa):
+        move_id = capa["stock_move_id"][0] if capa.get("stock_move_id") else None
+        if move_id is None:
+            # Sin movimiento asociado (ej. ajuste manual de valorización):
+            # no podemos confirmar la bodega, así que se excluye.
+            return False
+        loc_o, loc_d = ubicacion_por_move.get(move_id, (None, None))
+        return loc_o in ubicaciones_bodega or loc_d in ubicaciones_bodega
+
+    capas_previas = [c for c in capas_previas if _es_de_la_bodega(c)]
+    capas = [c for c in capas if _es_de_la_bodega(c)]
+
+    saldo_inicial = {}
+    for c in capas_previas:
+        pid, nombre = c["product_id"]
+        if pid not in saldo_inicial:
+            saldo_inicial[pid] = {"nombre": nombre, "cantidad": 0.0, "valor": 0.0}
+        saldo_inicial[pid]["cantidad"] += c["quantity"]
+        saldo_inicial[pid]["valor"] += c["value"]
 
     # --- Documento origen de cada movimiento (campo "origin") ---
     # Lo buscamos primero en stock.move; si viene vacío, lo tomamos de su transferencia (stock.picking),
@@ -182,13 +256,19 @@ def obtener_kardex(fecha_desde, fecha_hasta, codigo_producto=None):
         saldo_corrido[pid] += c["value"]
 
         clave_precio = c["stock_move_id"][0] if c.get("stock_move_id") else id(c)
-        precio_venta = None
+        precio_unitario_venta = None
         precio_es_estimado = False
         if not es_entrada:
-            precio_venta = precios_venta_por_capa.get(clave_precio)
-            if precio_venta is None:
-                precio_venta = precio_lista_por_producto.get(pid)
-                precio_es_estimado = precio_venta is not None
+            precio_unitario_venta = precios_venta_por_capa.get(clave_precio)
+            if precio_unitario_venta is None:
+                precio_unitario_venta = precio_lista_por_producto.get(pid)
+                precio_es_estimado = precio_unitario_venta is not None
+
+        # El "precio de venta" del kardex debe reflejar el costo TOTAL de las
+        # unidades que salieron (precio unitario x cantidad), no el precio unitario.
+        precio_venta = None
+        if precio_unitario_venta is not None:
+            precio_venta = precio_unitario_venta * (-cantidad)
 
         productos[pid]["movimientos"].append({
             "fecha": c["create_date"][:10] if c.get("create_date") else "",
@@ -196,7 +276,7 @@ def obtener_kardex(fecha_desde, fecha_hasta, codigo_producto=None):
             "costo_unitario": round(c["unit_cost"], 2) if es_entrada else None,
             "costo_total": round(c["value"], 2) if es_entrada else None,
             "qty_salida": round(-cantidad, 2) if not es_entrada else 0,
-            "precio_venta": round(precio_venta, 2) if precio_venta else None,
+            "precio_venta": round(precio_venta, 2) if precio_venta is not None else None,
             "precio_estimado": precio_es_estimado,
             "existencia": round(existencia_corrida[pid], 2),
             "saldo": round(saldo_corrido[pid], 2),
