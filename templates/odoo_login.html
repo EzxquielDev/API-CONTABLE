@@ -1,312 +1,133 @@
-{% extends "layout.html" %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/Global.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">  
+    <title>Login Odoo</title>
+</head>
+<body class="login-body">
 
-{% block title %}Login Odoo{% endblock %}
+    <div class="login-wrapper">
+        <main class="login-card">
 
-{% block content %}
+          <div class="cargando-consulta" id="cargando" hidden role="status" aria-live="polite">
+            <div class="cargando-contenido">
+              <span class="indicador-carga" aria-hidden="true"></span>
+              <strong id="mensajeCargando">Validando credenciales…</strong>
+              <span>Estamos verificando el acceso en Odoo.</span>
+            </div>
+          </div>
 
-<section class="api-pagina">
+          <header class="login-header">
+            <p class="login-overline">Seguridad</p>
+            <h1>Login Odoo</h1>
+            <p>Ingresa tu correo y contraseña de Odoo para que la consulta funcione.</p>
+          </header>
 
-  <div class="cargando-consulta" id="cargando" hidden role="status" aria-live="polite">
-    <div class="cargando-contenido">
-      <span class="indicador-carga" aria-hidden="true"></span>
-      <strong id="mensajeCargando">Validando credenciales…</strong>
-      <span>Estamos verificando el acceso en Odoo.</span>
+          <form id="formLoginOdoo" autocomplete="off" class="login-form">
+            
+            <div class="login-form-group">
+                <label for="odoo_user">Correo de Odoo</label>
+                <input
+                  id="odoo_user"
+                  name="odoo_user"
+                  type="email"
+                  required
+                  placeholder="correo@empresa.com"
+                />
+            </div>
+
+            <div class="login-form-group">
+                <label for="odoo_password">Contraseña de Odoo</label>
+                <input
+                  id="odoo_password"
+                  name="odoo_password"
+                  type="password"
+                  required
+                />
+            </div>
+
+            <div class="login-submit-container">
+              <button type="submit" class="login-btn">
+                Entrar
+              </button>
+            </div>
+
+            <p id="estado" class="login-status" aria-live="polite"></p>
+          </form>
+
+        </main>
     </div>
-  </div>
-
-
-  <header class="api-encabezado">
-
-    <div>
-
-      <p class="sobrelinea">Seguridad</p>
-
-      <h1>Login Odoo</h1>
-
-      <p>
-        Ingresa tu correo y contraseña de Odoo para que la consulta funcione.
-      </p>
-
-    </div>
-
-    <span class="estado-api">
-      <i></i> Credenciales desde navegador
-    </span>
-
-  </header>
-
-
-  <section class="api-modulo">
-
-    <h2>Acceso a Odoo</h2>
-
-
-    <form
-      class="panel"
-      id="formLoginOdoo"
-      autocomplete="off"
-    >
-
-      <label for="odoo_user">
-        Correo de Odoo
-      </label>
-
-      <input
-        id="odoo_user"
-        name="odoo_user"
-        type="email"
-        required
-        placeholder="correo@empresa.com"
-      />
-
-
-      <label for="odoo_password">
-        Contraseña de Odoo
-      </label>
-
-      <input
-        id="odoo_password"
-        name="odoo_password"
-        type="password"
-        required
-      />
-
-
-      <div
-        style="
-          display:flex;
-          gap:12px;
-          flex-wrap:wrap;
-          margin-top:16px;
-        "
-      >
-
-        <button
-          type="submit"
-          class="btn-primario"
-        >
-          Entrar
-        </button>
-
-      </div>
-
-
-      <p
-        id="estado"
-        class="estado-consulta"
-        aria-live="polite"
-        style="margin-top:14px;"
-      ></p>
-
-    </form>
-
-  </section>
-
-</section>
-
 
 <script>
-
 (() => {
-
   const storageKey = {
-
     user: 'odoo_login_user',
-
     pass: 'odoo_login_password',
-
     verified: 'odoo_login_verified'
-
   };
 
-
-  const form =
-    document.getElementById('formLoginOdoo');
-
-
-  const userEl =
-    document.getElementById('odoo_user');
-
-
-  const passEl =
-    document.getElementById('odoo_password');
-
-
-  const estadoEl =
-    document.getElementById('estado');
-
-
-  const cargando =
-    document.getElementById('cargando');
-
+  const form = document.getElementById('formLoginOdoo');
+  const userEl = document.getElementById('odoo_user');
+  const passEl = document.getElementById('odoo_password');
+  const estadoEl = document.getElementById('estado');
+  const cargando = document.getElementById('cargando');
 
   const setCargando = (v) => {
-
     cargando.hidden = !v;
-
   };
-
-
-  const borrar = () => {
-
-    localStorage.removeItem(storageKey.user);
-
-    localStorage.removeItem(storageKey.pass);
-
-    localStorage.removeItem(storageKey.verified);
-
-    estadoEl.textContent =
-      'Datos borrados. Vuelve a ingresar tu correo y contraseña.';
-
-  };
-
-
-  const btnBorrar =
-    document.getElementById('btnBorrar');
-
-
-  if (btnBorrar) {
-
-    btnBorrar.addEventListener(
-      'click',
-      () => {
-
-        borrar();
-
-        userEl.focus();
-
-        passEl.value = '';
-
-      }
-    );
-
-  }
-
 
   async function verificar() {
-
-
     const payload = {
-
       odoo_user: userEl.value.trim(),
-
       odoo_password: passEl.value
-
     };
 
-
     setCargando(true);
-
     estadoEl.textContent = '';
 
-
     try {
+      const resp = await fetch('/api/odoo/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': '{{ api_key }}'
+        },
+        body: JSON.stringify(payload)
+      });
 
-
-      const resp = await fetch(
-        '/api/odoo/verify',
-        {
-
-          method: 'POST',
-
-          headers: {
-
-            'Content-Type': 'application/json',
-
-            'X-API-Key': '{{ api_key }}'
-
-          },
-
-          body: JSON.stringify(payload)
-
-        }
-      );
-
-
-      const data =
-        await resp.json().catch(() => ({}));
-
+      const data = await resp.json().catch(() => ({}));
 
       if (!resp.ok) {
-
-        throw new Error(
-          data.error || 'Credenciales inválidas.'
-        );
-
+        throw new Error(data.error || 'Credenciales inválidas.');
       }
 
+      localStorage.setItem(storageKey.user, payload.odoo_user);
+      localStorage.setItem(storageKey.pass, payload.odoo_password);
+      localStorage.setItem(storageKey.verified, '1');
 
-      localStorage.setItem(
-        storageKey.user,
-        payload.odoo_user
-      );
+      estadoEl.textContent = 'Credenciales verificadas correctamente.';
+      estadoEl.style.color = '#3c6e47';
 
-
-      localStorage.setItem(
-        storageKey.pass,
-        payload.odoo_password
-      );
-
-
-      localStorage.setItem(
-        storageKey.verified,
-        '1'
-      );
-
-
-      estadoEl.textContent =
-        'Credenciales verificadas correctamente.';
-
-
-      const next =
-        new URLSearchParams(
-          window.location.search
-        ).get('next')
-        || '/entradas-productos';
-
-
+      const next = new URLSearchParams(window.location.search).get('next') || '/entradas-productos';
       window.location.href = next;
 
-
     } catch (e) {
-
-
-      estadoEl.innerHTML =
-        `<span style="color:#b00020;">
-          ${e.message}
-        </span>`;
-
-
-      localStorage.removeItem(
-        storageKey.verified
-      );
-
-
+      estadoEl.textContent = e.message;
+      estadoEl.style.color = '#b00020';
+      localStorage.removeItem(storageKey.verified);
     } finally {
-
-
       setCargando(false);
-
-
     }
-
   }
 
-
-  form.addEventListener(
-    'submit',
-    (ev) => {
-
-      ev.preventDefault();
-
-      verificar();
-
-    }
-  );
-
-
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    verificar();
+  });
 })();
-
 </script>
-
-{% endblock %}
+</body>
+</html>

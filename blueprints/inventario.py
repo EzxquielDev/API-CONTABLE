@@ -8,29 +8,23 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from auth import require_api_key
 from services.inventario_service import (
     obtener_almacenes,
-    obtener_entradas_inventario,
     obtener_productos_inventario,
     obtener_reporte_inventario,
     obtener_resumen_inventario,
-    obtener_todas_entradas_inventario,
 )
-
+from services.entradas_service import obtener_todas_entradas_inventario
 
 inventario_bp = Blueprint("inventario", __name__, url_prefix="/api/inventario")
-
 
 def _filtros():
     almacen_id = request.args.get("almacen_id", type=int)
     producto = request.args.get("producto", default="", type=str)
     return almacen_id, producto
 
-
 def _reporte_completo(almacen_id, producto):
     return obtener_productos_inventario(almacen_id, producto)
 
-
 def _fechas_entradas():
-    """Obtiene y valida el periodo usado por las entradas de inventario."""
     desde = request.args.get("desde", default=(date.today() - timedelta(days=30)).isoformat())
     hasta = request.args.get("hasta", default=date.today().isoformat())
     date.fromisoformat(desde)
@@ -39,7 +33,6 @@ def _fechas_entradas():
         raise ValueError("La fecha inicial no puede ser posterior a la fecha final.")
     return desde, hasta
 
-
 @inventario_bp.route("/almacenes", methods=["GET"])
 @require_api_key
 def almacenes():
@@ -47,7 +40,6 @@ def almacenes():
         return jsonify({"almacenes": obtener_almacenes()})
     except Exception as error:
         return jsonify({"error": str(error)}), 500
-
 
 @inventario_bp.route("/reporte", methods=["GET"])
 @require_api_key
@@ -62,7 +54,6 @@ def reporte():
     except Exception as error:
         return jsonify({"error": str(error)}), 500
 
-
 @inventario_bp.route("/resumen", methods=["GET"])
 @require_api_key
 def resumen():
@@ -74,25 +65,20 @@ def resumen():
     except Exception as error:
         return jsonify({"error": str(error)}), 500
 
-
 @inventario_bp.route("/entradas", methods=["GET"])
 @require_api_key
 def entradas():
-    """Compras facturadas por proveedor y producto."""
-    limite = request.args.get("limite", default=200, type=int)
     try:
         desde, hasta = _fechas_entradas()
-        return jsonify({"desde": desde, "hasta": hasta, "entradas": obtener_entradas_inventario(desde, hasta, limite)})
+        return jsonify({"desde": desde, "hasta": hasta, "entradas": obtener_todas_entradas_inventario(desde, hasta)})
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
     except Exception as error:
         return jsonify({"error": str(error)}), 500
 
-
 @inventario_bp.route("/entradas.xlsx", methods=["GET"])
 @require_api_key
 def entradas_xlsx():
-    """Descarga las entradas de productos del periodo seleccionado en Excel."""
     try:
         desde, hasta = _fechas_entradas()
         entradas = obtener_todas_entradas_inventario(desde, hasta)
@@ -137,7 +123,6 @@ def entradas_xlsx():
         download_name=f"entradas_{desde}_a_{hasta}.xlsx",
     )
 
-
 @inventario_bp.route("/reporte.csv", methods=["GET"])
 @require_api_key
 def reporte_csv():
@@ -151,7 +136,6 @@ def reporte_csv():
         return Response(salida.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=inventario.csv"})
     except Exception as error:
         return jsonify({"error": str(error)}), 500
-
 
 @inventario_bp.route("/reporte.xlsx", methods=["GET"])
 @require_api_key

@@ -1,0 +1,115 @@
+.login-body {
+    background-color: #f5f5f5;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+
+.login-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100%;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 450px;
+    padding: 2.5rem 2rem;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    box-sizing: border-box;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-header .login-overline {
+    color: #6b7785;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 0.5rem 0;
+}
+
+.login-header h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.8rem;
+    color: #17202a;
+}
+
+.login-header p {
+    color: #6b7785;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.login-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.login-form-group label {
+    font-weight: 600;
+    color: #34495e;
+    font-size: 0.95rem;
+}
+
+.login-form-group input {
+    padding: 0.85rem;
+    border: 1px solid #dce3e9;
+    border-radius: 6px;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 1rem;
+    color: #17202a;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.login-form-group input:focus {
+    border-color: #000000;
+}
+
+.login-submit-container {
+    margin-top: 0.5rem;
+}
+
+.login-btn {
+    width: 100%;
+    padding: 0.9rem;
+    font-size: 1.05rem;
+    font-weight: bold;
+    border-radius: 6px;
+    background-color: #000000;
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.login-btn:hover {
+    opacity: 0.8;
+}
+
+.login-status {
+    margin-top: 0;
+    text-align: center;
+    font-size: 0.95rem;
+    color: #b00020;
+    min-height: 20px;
+}

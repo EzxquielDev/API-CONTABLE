@@ -1,17 +1,19 @@
 from flask import Flask, jsonify, redirect, render_template, url_for
 
+# =========================
+# IMPORTACIONES DE BLUEPRINTS
+# =========================
 from blueprints.dashboard import dashboard_bp
 from blueprints.ventas import ventas_bp
 from blueprints.kardex import kardex_bp
 from blueprints.inventario import inventario_bp
 
-# Rutas de Inventario
-from Rutas.inventario import Invetario_ruta
-
 from config import Config
 from auth import require_api_key
 
-# Rutas de autenticación
+# =========================
+# IMPORTACIONES DE AUTENTICACIÓN (Faltaban)
+# =========================
 from odoo_auth import register_odoo_auth_routes
 from odoo_logout import register_odoo_logout_routes
 
@@ -22,7 +24,6 @@ app = Flask(__name__)
 # =========================
 # REGISTRO DE BLUEPRINTS
 # =========================
-
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(ventas_bp)
 app.register_blueprint(kardex_bp)
@@ -30,7 +31,7 @@ app.register_blueprint(inventario_bp)
 
 
 # =========================
-# RUTAS WEB / PÁGINAS
+# RUTAS WEB / PÁGINAS (Frontend)
 # =========================
 
 @app.route("/")
@@ -63,7 +64,6 @@ def login():
 @app.route("/entradas-productos")
 def entradas_productos():
     """Pantalla para consultar las entradas de productos de Odoo."""
-
     return render_template(
         "api.html",
         title="Panel API",
@@ -74,18 +74,28 @@ def entradas_productos():
 @app.route("/api")
 def api_info():
     """Ruta anterior del panel; se conserva para enlaces existentes."""
-
     return redirect(url_for("entradas_productos"))
 
 
+@app.route("/inventario")
+def inventario():
+    """Pantalla del frontend para el inventario."""
+    # CORRECCIÓN: Renderizamos la plantilla HTML en lugar de llamar a una ruta eliminada.
+    # Asegúrate de tener un archivo 'inventario.html' en tu carpeta de templates.
+    return render_template(
+        "inventario.html", 
+        title="Inventario de Productos",
+        api_key=Config.API_KEY
+    )
+
+
 # =========================
-# INFORMACIÓN DE LA API
+# INFORMACIÓN DE LA API (Endpoints)
 # =========================
 
 @app.route("/api/info")
 @require_api_key
 def api_estado():
-
     return jsonify({
         "status": "ok",
         "mensaje": "API contable de Odoo funcionando",
@@ -104,19 +114,8 @@ def api_estado():
 
 
 # =========================
-# INVENTARIO
-# =========================
-
-@app.route("/inventario")
-def inventario():
-
-    return Invetario_ruta()
-
-
-# =========================
 # AUTENTICACIÓN ODOO
 # =========================
-
 register_odoo_auth_routes(app)
 register_odoo_logout_routes(app)
 
@@ -124,8 +123,5 @@ register_odoo_logout_routes(app)
 # =========================
 # EJECUCIÓN LOCAL
 # =========================
-
-
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
-

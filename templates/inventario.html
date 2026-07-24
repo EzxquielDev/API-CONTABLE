@@ -5,8 +5,8 @@
 {% block content %}
     <section class="inventario-pagina" data-api-key="{{ api_key }}">
 
-    <div id="loginOdooWrap" style="display:none; max-width:520px; margin: 16px auto;">
-        <div class="panel">
+    <div id="loginOdooWrap" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="panel" style="max-width: 520px; width: 100%; margin: 20px; max-height: 90vh; overflow-y: auto;">
             <h2>Login Odoo</h2>
             <p>Para consultar Odoo, ingresa tu correo y contraseña.</p>
 
@@ -60,10 +60,6 @@
                 <input id="producto" name="producto" type="search" placeholder="Ej. bicicleta o SKU-001">
             </label>
             <button type="submit">Consultar</button>
-            <div class="selector-vista" aria-label="Tipo de vista">
-                <button type="button" class="boton-vista" data-tabla="tablaPanel" data-vista="lista" aria-pressed="false">Lista</button>
-                <button type="button" class="boton-vista activo" data-tabla="tablaPanel" data-vista="cuadricula" aria-pressed="true">Cuadros</button>
-            </div>
         </form>
 
         <p id="estado">La consulta comenzará al abrir esta sección.</p>
@@ -74,7 +70,7 @@
                 <div class="leyenda-grafica"><span><i class="color-disponible"></i>Disponible <strong id="totalDisponible">0</strong></span><span><i class="color-reservado"></i>Reservado <strong id="totalReservado">0</strong></span></div>
             </div>
         </section>
-        <section class="tabla-contenedor vista-cuadricula" id="tablaPanel" hidden>
+        <section class="tabla-contenedor vista-lista" id="tablaPanel" hidden>
             <table><thead><tr><th>SKU</th><th>Producto</th><th>Categoría</th><th>Existencia</th><th>Reservado</th><th>Disponible</th><th>Costo</th><th>Valor</th></tr></thead><tbody id="filasInventario"></tbody></table>
         </section>
     </section>
@@ -85,10 +81,6 @@
             <label for="hasta">Hasta <input id="hasta" name="hasta" type="date"></label>
             <button type="submit">Consultar compras</button>
             <a id="descargarEntradasExcel" class="accion-principal" href="#">Descargar Excel</a>
-            <div class="selector-vista" aria-label="Tipo de vista de entradas">
-                <button type="button" class="boton-vista activo" data-tabla="tablaEntradas" data-vista="lista" aria-pressed="true">Lista</button>
-                <button type="button" class="boton-vista" data-tabla="tablaEntradas" data-vista="cuadricula" aria-pressed="false">Cuadros</button>
-            </div>
         </form>
         <p id="estadoEntradas">Elige esta sección para consultar las compras facturadas.</p>
         <section class="tabla-contenedor vista-lista" id="tablaEntradas" hidden>
@@ -120,7 +112,7 @@
     if (!wrap) return true;
     const creds = getOdooCreds();
     if (!creds.user || !creds.pass || !credsVerified()) {
-      wrap.style.display = 'block';
+      wrap.style.display = 'flex';
       return false;
     }
     wrap.style.display = 'none';
@@ -139,10 +131,25 @@
     Object.entries(datos).forEach(([clave, valor]) => { if (valor !== '' && valor != null) url.searchParams.set(clave, valor); });
     return url;
   };
+  const CACHE_TTL_MS = 120000; // 2 minutos
+
   const consultar = async (ruta, datos) => {
     if (!requireCredsUI()) throw new Error('Necesitas iniciar sesión en Odoo para continuar.');
     const { user, pass } = getOdooCreds();
-    const respuesta = await fetch(parametros(ruta, datos), {
+    
+    const url = parametros(ruta, datos).toString();
+    const cacheKey = 'cache_' + url;
+    
+    // Check cache
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      const { timestamp, data } = JSON.parse(cached);
+      if (Date.now() - timestamp < CACHE_TTL_MS) {
+        return data;
+      }
+    }
+
+    const respuesta = await fetch(url, {
       headers: {
         'X-Odoo-User': user,
         'X-Odoo-Password': pass
@@ -151,6 +158,13 @@
 
     const cuerpo = await respuesta.json();
     if (!respuesta.ok) throw new Error(cuerpo.error || 'No fue posible consultar Odoo.');
+    
+    // Save to cache
+    sessionStorage.setItem(cacheKey, JSON.stringify({
+      timestamp: Date.now(),
+      data: cuerpo
+    }));
+
     return cuerpo;
   };
   const mostrarCarga = (mensaje) => { mensajeCarga.textContent = mensaje; cargando.hidden = false; };
@@ -272,7 +286,7 @@
         cargarInventario();
       } catch (e) {
         const wrap = document.getElementById('loginOdooWrap');
-        if (wrap) wrap.style.display = 'block';
+        if (wrap) wrap.style.display = 'flex';
         estadoLogin.textContent = e.message;
         localStorage.removeItem(storageKey.verified);
       }
@@ -285,7 +299,7 @@
       localStorage.removeItem(storageKey.pass);
       localStorage.removeItem(storageKey.verified);
       const wrap = document.getElementById('loginOdooWrap');
-      if (wrap) wrap.style.display = 'block';
+      if (wrap) wrap.style.display = 'flex';
       if (document.getElementById('estadoLoginOdoo')) document.getElementById('estadoLoginOdoo').textContent = 'Datos borrados.';
     });
   }
@@ -293,10 +307,9 @@
   document.getElementById('formularioInventario').addEventListener('submit', event => { event.preventDefault(); cargarInventario(); });
 
   document.getElementById('formularioEntradas').addEventListener('submit', event => { event.preventDefault(); cargarEntradas(); });
-  document.querySelectorAll('.boton-vista').forEach(boton => boton.addEventListener('click', () => { const tabla = document.getElementById(boton.dataset.tabla); const lista = boton.dataset.vista === 'lista'; tabla.classList.toggle('vista-lista', lista); tabla.classList.toggle('vista-cuadricula', !lista); document.querySelectorAll(`.boton-vista[data-tabla="${boton.dataset.tabla}"]`).forEach(control => { const activo = control === boton; control.classList.toggle('activo', activo); control.setAttribute('aria-pressed', activo); }); }));
   document.getElementById('tabExistencias').addEventListener('click', () => { document.getElementById('panelExistencias').hidden = false; document.getElementById('panelEntradas').hidden = true; document.getElementById('tabExistencias').classList.add('activa'); document.getElementById('tabEntradas').classList.remove('activa'); document.getElementById('tabExistencias').setAttribute('aria-selected', 'true'); document.getElementById('tabEntradas').setAttribute('aria-selected', 'false'); });
   document.getElementById('tabEntradas').addEventListener('click', () => { document.getElementById('panelExistencias').hidden = true; document.getElementById('panelEntradas').hidden = false; document.getElementById('tabExistencias').classList.remove('activa'); document.getElementById('tabEntradas').classList.add('activa'); document.getElementById('tabExistencias').setAttribute('aria-selected', 'false'); document.getElementById('tabEntradas').setAttribute('aria-selected', 'true'); if (!entradasCargadas) cargarEntradas(); });
-  const hoy = new Date(); const hace30 = new Date(hoy); hace30.setDate(hoy.getDate() - 30); const fecha = valor => valor.toISOString().slice(0, 10); document.getElementById('desde').value = fecha(hace30); document.getElementById('hasta').value = fecha(hoy);
+  const hoy = new Date(); const hace365 = new Date(hoy); hace365.setFullYear(hoy.getFullYear() - 1); const fecha = valor => valor.toISOString().slice(0, 10); document.getElementById('desde').value = fecha(hace365); document.getElementById('hasta').value = fecha(hoy);
   const actualizarExcelEntradas = () => { document.getElementById('descargarEntradasExcel').href = parametros('/api/inventario/entradas.xlsx', { desde: document.getElementById('desde').value, hasta: document.getElementById('hasta').value }); };
   document.getElementById('desde').addEventListener('change', actualizarExcelEntradas); document.getElementById('hasta').addEventListener('change', actualizarExcelEntradas); actualizarExcelEntradas();
   Promise.all([cargarAlmacenes(), cargarInventario()]).catch(error => { document.getElementById('estado').textContent = `No se pudo consultar Odoo: ${error.message}`; ocultarCarga(); });
