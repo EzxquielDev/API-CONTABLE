@@ -1,12 +1,17 @@
-/* ===== Kardex de Inventario — estilos básicos ===== */
+/* ===== Kardex de Inventario — modernizado ===== */
 
 .kx-panel {
-  background: #fff;
-  border: 1px solid #e2e2e2;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s;
+}
+
+.kx-panel:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .kx-filtros {
@@ -18,133 +23,165 @@
 
 .kx-filtros label {
   display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: #444;
-  margin-bottom: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
 }
 
 .kx-filtros input[type="date"],
 .kx-input {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  transition: all 0.2s;
+  outline: none;
+}
+
+.kx-filtros input[type="date"]:focus,
+.kx-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
 }
 
 .kx-btn-primario,
 .kx-btn-secundario {
-  padding: 9px 16px;
+  padding: 10px 18px;
   border: none;
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-sm);
 }
 
 .kx-btn-primario {
-  background: #2f5597;
-  color: #fff;
+  background: var(--primary);
+  color: white;
 }
 
 .kx-btn-primario:hover {
-  background: #24437a;
+  background: var(--accent-dark-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .kx-btn-primario:disabled {
-  background: #9aa9c2;
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .kx-btn-secundario {
-  background: #eef1f6;
-  color: #2f5597;
-  border: 1px solid #c7d0e0;
+  background: var(--success);
+  color: white;
 }
 
 .kx-btn-secundario:hover {
-  background: #dfe5f0;
+  background: var(--success-light);
+  color: var(--success);
+  border: 1px solid var(--success);
 }
 
 .kx-selector-vista {
   display: flex;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
 .kx-boton-vista {
   padding: 8px 14px;
   border: none;
-  background: #fff;
-  color: #444;
-  font-size: 13px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 .kx-boton-vista+.kx-boton-vista {
-  border-left: 1px solid #ccc;
+  border-left: 1px solid var(--border-medium);
 }
 
 .kx-boton-vista.kx-activo {
-  background: #2f5597;
-  color: #fff;
+  background: var(--primary);
+  color: white;
 }
 
 .kx-estado {
-  margin-top: 12px;
-  font-size: 13px;
-  color: #555;
+  margin-top: 16px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 .kx-error {
-  color: #c0392b;
+  color: #ef4444;
   font-weight: 600;
 }
 
 .kx-nota {
-  font-size: 12px;
-  color: #888;
-  margin-bottom: 12px;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin-bottom: 16px;
 }
 
 .kx-estimado {
-  color: #9c6500;
+  color: #d97706;
 }
 
 /* ===== Tabla del kardex ===== */
 
+.kx-tabla {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+}
+
 .kx-tabla table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 0.95rem;
 }
 
 .kx-tabla th {
-  background: #2f5597;
-  color: #fff;
-  font-weight: 600;
-  text-align: center;
-  padding: 10px 8px;
-  white-space: normal;
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-align: left;
+  padding: 14px 16px;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .kx-tabla td {
-  padding: 10px 8px;
-  border-bottom: 1px solid #eee;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
   text-align: left;
-  white-space: normal;
+  color: var(--text-primary);
+}
+
+.kx-tabla tbody tr {
+  transition: background 0.15s;
 }
 
 .kx-tabla tbody tr:hover {
-  background: #f7f9fc;
+  background: var(--border-light);
 }
 
 .kx-fila-inicial {
   font-style: italic;
-  color: #666;
-  background: #fafafa;
+  color: var(--text-secondary);
+  background: var(--bg-page);
 }
 
 /* Vista lista: tabla normal con scroll horizontal si hace falta */
@@ -172,24 +209,23 @@
 }
 
 .kx-vista-cuadricula tbody tr {
-  border: 1px solid #e2e2e2;
-  border-radius: 6px;
-  margin-bottom: 10px;
-  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-medium);
+  padding: 16px;
 }
 
 .kx-vista-cuadricula td {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px dashed #eee;
-  padding: 6px 0;
+  border-bottom: 1px dashed var(--border-soft);
+  padding: 8px 0;
 }
 
 .kx-vista-cuadricula td::before {
   content: attr(data-label);
   font-weight: 600;
-  color: #2f5597;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
 }
 
 @media (max-width: 700px) {

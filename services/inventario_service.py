@@ -14,6 +14,11 @@ ODOO_USER = os.getenv("ODOO_USER")
 ODOO_PASSWORD = os.getenv("ODOO_PASSWORD")
 ODOO_SSL_UNVERIFIED = os.getenv("ODOO_SSL_UNVERIFIED", "false").lower() == "true"
 
+import time
+
+_cache_inventario = {}
+CACHE_TTL = 120  # 2 minutos en segundos
+
 
 def _get_connection():
     """Autentica y devuelve el objeto models y el uid para hacer consultas."""
@@ -90,8 +95,19 @@ def _mapear_producto(p):
     }
 
 
-def obtener_productos_inventario(almacen_id, producto):
-    """Obtiene TODOS los productos para los reportes de Excel/CSV."""
+def obtener_productos_inventario(almacen_id=None, producto=""):
+    """
+    Obtiene TODOS los productos desde Odoo (o filtrados) con sus existencias.
+    Implementa caché en memoria de 2 minutos (120s) por combinación de filtros.
+    """
+    clave_cache = f"{almacen_id}_{producto}"
+    ahora = time.time()
+    
+    if clave_cache in _cache_inventario:
+        datos, timestamp = _cache_inventario[clave_cache]
+        if ahora - timestamp < CACHE_TTL:
+            return datos
+
     models, uid = _get_connection()
     domain = _construir_dominio_productos(producto)
     context = {'location': almacen_id} if almacen_id else {}
@@ -103,11 +119,24 @@ def obtener_productos_inventario(almacen_id, producto):
         [domain], {'fields': campos, 'context': context}
     )
     
-    return [_mapear_producto(p) for p in productos_odoo]
+    resultado = [_mapear_producto(p) for p in productos_odoo]
+    
+    # Guardar en caché
+    _cache_inventario[clave_cache] = (resultado, ahora)
+    
+    return resultado
 
 
 def obtener_reporte_inventario(almacen_id, producto, pagina=1, por_pagina=100):
     """Obtiene los productos con paginación para la vista de la UI."""
+    clave_cache = f"reporte_{almacen_id}_{producto}_{pagina}_{por_pagina}"
+    ahora = time.time()
+    
+    if clave_cache in _cache_inventario:
+        datos, timestamp = _cache_inventario[clave_cache]
+        if ahora - timestamp < CACHE_TTL:
+            return datos
+
     models, uid = _get_connection()
     domain = _construir_dominio_productos(producto)
     context = {'location': almacen_id} if almacen_id else {}
@@ -125,13 +154,16 @@ def obtener_reporte_inventario(almacen_id, producto, pagina=1, por_pagina=100):
         [domain], {'fields': campos, 'context': context, 'limit': limit, 'offset': offset}
     )
     
-    return {
+    resultado = {
         "total": total_registros,
         "pagina": pagina,
         "por_pagina": por_pagina,
         "paginas": (total_registros + por_pagina - 1) // por_pagina,
         "productos": [_mapear_producto(p) for p in productos_odoo]
     }
+    
+    _cache_inventario[clave_cache] = (resultado, ahora)
+    return resultado
 
 
 def obtener_resumen_inventario(almacen_id, producto):

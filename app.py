@@ -38,7 +38,7 @@ app.register_blueprint(inventario_bp)
 def index():
     return render_template(
         "facturacion.html",
-        title="Reporte de Ventas",
+        title="HOME",
         api_key=Config.API_KEY
     )
 
@@ -66,7 +66,7 @@ def entradas_productos():
     """Pantalla para consultar las entradas de productos de Odoo."""
     return render_template(
         "api.html",
-        title="Panel API",
+        title="Entradas - Alfolí",
         api_key=Config.API_KEY
     )
 

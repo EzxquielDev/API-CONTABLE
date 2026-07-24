@@ -1,63 +1,71 @@
 {% extends "layout.html" %}
 
 {% block title %}Reporte de Ventas{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+{% endblock %}
+
 {% block content %}
 
-<h1>📊 Reporte de Ventas</h1>
-
-<div class="panel">
-  <div class="filtros">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/Inventario.css') }}">
+<section class="inventario-pagina">
+  <header class="inventario-encabezado">
     <div>
-      <label for="desde">Desde</label>
+      <h1><i class="ph ph-chart-line-up" style="color: var(--primary); margin-right: 8px;"></i> Reporte de Ventas</h1>
+      <p>Consulta de facturas emitidas y montos totales por período.</p>
+    </div>
+  </header>
+
+  <div class="panel filtros-inventario">
+    <label for="desde">Desde
       <input type="date" id="desde">
-    </div>
-    <div>
-      <label for="hasta">Hasta</label>
+    </label>
+    <label for="hasta">Hasta
       <input type="date" id="hasta">
-    </div>
-    <button class="btn-primario" id="btnGenerar" onclick="generarReporte()">Generar reporte</button>
-    <button class="btn-secundario" id="btnExcel" onclick="descargarExcel()" disabled>⬇ Descargar Excel</button>
+    </label>
+    <button type="button" id="btnGenerar" onclick="generarReporte()" style="display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--text-primary); border: 1px solid var(--border-medium); box-shadow: none; font-weight: 500;"><i class="ph ph-magic-wand" style="margin-right: 6px; font-size: 1.1rem;"></i> Generar reporte</button>
+    <button type="button" id="btnExcel" onclick="descargarExcel()" disabled style="padding: 10px 18px; display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--text-primary); border: 1px solid var(--border-medium); border-radius: var(--radius-sm); font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: none;"><i class="ph ph-file-xls" style="margin-right: 6px; font-size: 1.1rem;"></i> Descargar Excel</button>
   </div>
-  <div id="estado"></div>
-</div>
 
-<div class="panel" id="panelTotales" style="display:none;">
-  <div class="totales">
-    <div class="tarjeta">
-      <div class="etiqueta">Total facturado (con IVA)</div>
-      <div class="valor" id="totalConIva">-</div>
-    </div>
-    <div class="tarjeta">
-      <div class="etiqueta">Total ventas sin IVA</div>
-      <div class="valor" id="totalSinIva">-</div>
-    </div>
-    <div class="tarjeta">
-      <div class="etiqueta">Total IVA</div>
-      <div class="valor" id="totalIva">-</div>
-    </div>
-    <div class="tarjeta">
-      <div class="etiqueta"># Facturas</div>
-      <div class="valor" id="cantidadFacturas">-</div>
-    </div>
+  <p id="estado" style="margin-bottom: 24px; color: var(--text-secondary);"></p>
+
+  <section class="resumen-inventario" id="panelTotales" style="display:none;">
+    <article>
+      <span>Total facturado (con IVA)</span>
+      <strong id="totalConIva">-</strong>
+    </article>
+    <article>
+      <span>Total ventas sin IVA</span>
+      <strong id="totalSinIva">-</strong>
+    </article>
+    <article>
+      <span>Total IVA</span>
+      <strong id="totalIva">-</strong>
+    </article>
+    <article>
+      <span># Facturas</span>
+      <strong id="cantidadFacturas">-</strong>
+    </article>
+  </section>
+
+  <div class="tabla-contenedor vista-lista" id="panelDetalle" style="display:none;">
+    <table>
+      <thead>
+        <tr>
+          <th>Número</th>
+          <th>Cliente</th>
+          <th>Fecha</th>
+          <th>Sin IVA</th>
+          <th>IVA</th>
+          <th>Total</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody id="cuerpoTabla"></tbody>
+    </table>
   </div>
-</div>
-
-<div class="panel tabla-contenedor vista-lista" id="panelDetalle" style="display:none;">
-  <table>
-    <thead>
-      <tr>
-        <th>Número</th>
-        <th>Cliente</th>
-        <th>Fecha</th>
-        <th>Sin IVA</th>
-        <th>IVA</th>
-        <th>Total</th>
-        <th>Estado</th>
-      </tr>
-    </thead>
-    <tbody id="cuerpoTabla"></tbody>
-  </table>
-</div>
+</section>
 
 <script>
   const API_KEY = "{{ api_key }}";
@@ -101,7 +109,7 @@
       document.getElementById("totalSinIva").textContent = formatoMoneda(data.total_sin_iva);
       document.getElementById("totalIva").textContent = formatoMoneda(data.total_iva);
       document.getElementById("cantidadFacturas").textContent = data.cantidad_facturas;
-      document.getElementById("panelTotales").style.display = "block";
+      document.getElementById("panelTotales").style.display = "grid";
 
       const cuerpo = document.getElementById("cuerpoTabla");
       cuerpo.innerHTML = "";

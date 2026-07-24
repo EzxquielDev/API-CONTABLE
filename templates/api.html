@@ -164,7 +164,7 @@
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         const { timestamp, data } = JSON.parse(cached);
-        if (Date.now() - timestamp < 20000) {
+        if (Date.now() - timestamp < 120000) {
           datos = data;
         }
       }

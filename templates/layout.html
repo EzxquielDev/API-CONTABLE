@@ -6,20 +6,25 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Global.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Inventario.css')}}">  
     <link rel="stylesheet" href="{{ url_for('static', filename='css/facturacion.css')}}">  
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     {% block extra_head %}{% endblock %}
-    <title>{{ title }}</title>
+    <title>{{ title }} - ALFOLI</title>
 </head>
 <body>
     <header class="barra-navegacion">
-        <a class="marca" href="{{ url_for('index') }}">API Contable</a>
-        <button type="button" class="btn-secundario" id="btnCerrarSesionHeader" style="margin-left:12px; display:none;">Cerrar sesión</button>
+        <div class="marca">
+            <span style="display: flex; align-items: baseline; gap: 6px;">
+                <a href="{{ url_for('index') }}" style="color: inherit; text-decoration: none;">Alfolí</a> 
+                <a href="https://www.google.com/search?q=significado+Malaqu%C3%ADas+3:10" target="_blank" title="Buscar significado en Google" style="font-size: 0.6rem; color: var(--text-tertiary); font-weight: 500; letter-spacing: 0.02em; text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-tertiary)'">Malaquías 3:10</a>
+            </span>
+        </div>
         <nav aria-label="Navegación principal">
-            <a class="{{ 'activo' if request.endpoint == 'index' else '' }}" href="{{ url_for('index') }}">Ventas</a>
-            <a class="{{ 'activo' if request.endpoint == 'inventario' else '' }}" href="{{ url_for('inventario') }}">Inventario</a>
-            <a class="{{ 'activo' if request.endpoint == 'kardex' else '' }}" href="{{ url_for('kardex') }}">Kardex</a>
-            <a class="{{ 'activo' if request.endpoint == 'entradas_productos' else '' }}" href="{{ url_for('entradas_productos') }}">Entradas</a>
-            <details class="menu-api {{ 'activo' if request.endpoint in ['api_info', 'api_estado'] else '' }}">
-                <summary>API</summary>
+            <a class="{{ 'activo' if request.endpoint == 'index' else '' }}" href="{{ url_for('index') }}"><i class="ph ph-chart-line-up" style="margin-right: 4px;"></i> Ventas</a>
+            <a class="{{ 'activo' if request.endpoint == 'inventario' else '' }}" href="{{ url_for('inventario') }}"><i class="ph ph-package" style="margin-right: 4px;"></i> Inventario</a>
+            <a class="{{ 'activo' if request.endpoint == 'kardex' else '' }}" href="{{ url_for('kardex') }}"><i class="ph ph-file-text" style="margin-right: 4px;"></i> Kardex</a>
+            <a class="{{ 'activo' if request.endpoint == 'entradas_productos' else '' }}" href="{{ url_for('entradas_productos') }}"><i class="ph ph-box-arrow-down" style="margin-right: 4px;"></i> Entradas</a>
+            <details class="menu-api {{ 'activo' if request.endpoint in ['api_info', 'api_estado'] else '' }}" style="display: none;">
+                <summary><i class="ph ph-code" style="margin-right: 4px;"></i> API</summary>
                 <div class="menu-api-contenido">
                     <a href="{{ url_for('entradas_productos') }}">Panel de consultas</a>
                     <a href="{{ url_for('entradas_productos') }}#entradas">Entradas de productos</a>
@@ -47,6 +52,9 @@
                     <a href="{{ url_for('inventario.reporte_xlsx', api_key=api_key) }}">Inventario (Excel)</a>
                 </div>
             </details>
+            <button type="button" class="btn-secundario" id="btnCerrarSesionHeader" title="Cerrar sesión" style="margin-left:8px; display:none; padding: 8px; border-radius: 6px; cursor: pointer; border: none; background: var(--bg-page); color: var(--text-secondary); font-size: 1.25rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#ef4444'; this.style.color='white';" onmouseout="this.style.background='var(--bg-page)'; this.style.color='var(--text-secondary)';">
+                <i class="ph ph-sign-out"></i>
+            </button>
         </nav>
     </header>
 

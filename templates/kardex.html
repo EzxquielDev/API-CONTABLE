@@ -1,36 +1,45 @@
 {% extends "layout.html" %}
 
 {% block title %}Kardex de Inventario{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+{% endblock %}
+
 {% block content %}
 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/Inventario.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/kardex.css') }}">
 
-<h1>📦 Kardex de Inventario</h1>
-
-<div class="kx-panel">
-  <div class="kx-filtros">
+<section class="inventario-pagina">
+  <header class="inventario-encabezado">
     <div>
-      <label for="desde">Desde</label>
+      <h1><i class="ph ph-file-text" style="color: var(--primary); margin-right: 8px;"></i> Kardex de Inventario</h1>
+      <p>Consulta los movimientos y saldos de cada producto.</p>
+    </div>
+  </header>
+
+  <div class="panel filtros-inventario">
+    <label for="desde">Desde
       <input type="date" id="desde">
-    </div>
-    <div>
-      <label for="hasta">Hasta</label>
+    </label>
+    <label for="hasta">Hasta
       <input type="date" id="hasta">
-    </div>
-    <div>
-      <label for="codigoProducto">Código (opcional)</label>
-      <input type="text" id="codigoProducto" placeholder="ej. 265222-007" class="kx-input">
-    </div>
-    <button class="kx-btn-primario" id="btnKardex" onclick="verKardex()">Generar kardex</button>
-    <button class="kx-btn-secundario" id="btnKardexExcel" onclick="descargarKardexExcel()">⬇ Kardex a Excel</button>
+    </label>
+    <label for="codigoProducto">Código (opcional)
+      <input type="text" id="codigoProducto" placeholder="ej. 265222-007">
+    </label>
+    <button type="button" id="btnKardex" onclick="verKardex()" style="display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--text-primary); border: 1px solid var(--border-medium); box-shadow: none; font-weight: 500;"><i class="ph ph-magic-wand" style="margin-right: 6px; font-size: 1.1rem;"></i> Generar kardex</button>
+    <button type="button" id="btnKardexExcel" onclick="descargarKardexExcel()" style="padding: 10px 18px; display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--text-primary); border: 1px solid var(--border-medium); border-radius: var(--radius-sm); font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: none;"><i class="ph ph-file-xls" style="margin-right: 6px; font-size: 1.1rem;"></i> Kardex a Excel</button>
   </div>
-  <div id="estado" class="kx-estado"></div>
-</div>
 
-<div class="kx-panel" id="panelKardex" style="display:none;">
-  <p class="kx-nota">* Precio estimado (tomado del precio de lista del producto, no se encontró la factura exacta)</p>
-  <div id="cuerpoKardex"></div>
-</div>
+  <p id="estado" style="margin-bottom: 24px; color: var(--text-secondary);"></p>
+
+  <div id="panelKardex" style="display:none;">
+    <p class="kx-nota">* Precio estimado (tomado del precio de lista del producto, no se encontró la factura exacta)</p>
+    <div id="cuerpoKardex"></div>
+  </div>
+</section>
 
 <script>
   const API_KEY = "{{ api_key }}";
@@ -116,6 +125,7 @@
 
       document.getElementById("panelKardex").style.display = "block";
       estado.textContent = `Listo — ${data.productos.length} productos con movimiento.`;
+      
     } catch (e) {
       estado.innerHTML = `<span class="kx-error">Error de conexión: ${e.message}</span>`;
     } finally {

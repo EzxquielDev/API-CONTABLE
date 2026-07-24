@@ -2,6 +2,10 @@
 
 {% block title %}Inventario{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+{% endblock %}
+
 {% block content %}
     <section class="inventario-pagina" data-api-key="{{ api_key }}">
 
@@ -229,14 +233,70 @@
     });
     if (!productos.length) { const fila = document.createElement('tr'); const td = celda('No hay productos que coincidan con el filtro.', ''); td.colSpan = 8; fila.append(td); filas.append(fila); }
     document.getElementById('tablaPanel').hidden = false;
-    const tarjetas = [['Productos', resumen.cantidad_productos], ['Existencia', numero.format(resumen.existencia_total)], ['Disponible', numero.format(resumen.disponible_total)], ['Valor de inventario', moneda.format(resumen.valor_inventario_total)]];
-    const panel = document.getElementById('resumenInventario'); panel.replaceChildren(); tarjetas.forEach(([titulo, valor]) => { const articulo = document.createElement('article'); const span = document.createElement('span'); const fuerte = document.createElement('strong'); span.textContent = titulo; fuerte.textContent = valor; articulo.append(span, fuerte); panel.append(articulo); }); panel.hidden = false;
+    
+    const panel = document.getElementById('resumenInventario'); 
+    panel.replaceChildren(); 
+    
+    // Crear la estructura de las tarjetas en 0
+    const tarjetasElementos = [];
+    ['Productos', 'Existencia', 'Disponible', 'Valor de inventario'].forEach(titulo => {
+        const articulo = document.createElement('article'); 
+        const span = document.createElement('span'); 
+        const fuerte = document.createElement('strong'); 
+        span.textContent = titulo; 
+        fuerte.textContent = '0'; 
+        articulo.append(span, fuerte); 
+        panel.append(articulo);
+        tarjetasElementos.push(fuerte);
+    }); 
+    panel.hidden = false;
+    
     const porcentaje = resumen.existencia_total > 0 ? resumen.disponible_total / resumen.existencia_total * 100 : 0;
-    document.getElementById('donaDisponibilidad').style.setProperty('--porcentaje-disponible', `${porcentaje}%`);
-    document.getElementById('donaDisponibilidad').setAttribute('aria-label', `${porcentaje.toFixed(1)} por ciento disponible`);
-    document.getElementById('porcentajeDisponible').textContent = `${Math.round(porcentaje)}%`;
-    document.getElementById('totalDisponible').textContent = numero.format(resumen.disponible_total);
-    document.getElementById('totalReservado').textContent = numero.format(resumen.reservado_total);
+    
+    // Configuración para la animación
+    const valoresActuales = { 
+        productos: 0, 
+        existencia: 0, 
+        disponible: 0, 
+        valor: 0, 
+        p: 0, 
+        totalDisponible: 0, 
+        totalReservado: 0 
+    };
+    
+    const donita = document.getElementById('donaDisponibilidad');
+    const textoDonita = document.getElementById('porcentajeDisponible');
+    const lblDisponible = document.getElementById('totalDisponible');
+    const lblReservado = document.getElementById('totalReservado');
+    
+    anime({
+      targets: valoresActuales,
+      productos: resumen.cantidad_productos,
+      existencia: resumen.existencia_total,
+      disponible: resumen.disponible_total,
+      valor: resumen.valor_inventario_total,
+      p: porcentaje,
+      totalDisponible: resumen.disponible_total,
+      totalReservado: resumen.reservado_total,
+      round: 1,
+      easing: 'easeOutQuart',
+      duration: 1500,
+      update: function() {
+        // Actualizar tarjetas
+        tarjetasElementos[0].textContent = valoresActuales.productos;
+        tarjetasElementos[1].textContent = numero.format(valoresActuales.existencia);
+        tarjetasElementos[2].textContent = numero.format(valoresActuales.disponible);
+        tarjetasElementos[3].textContent = moneda.format(valoresActuales.valor);
+        
+        // Actualizar gráfico y leyenda
+        donita.style.setProperty('--porcentaje-disponible', `${valoresActuales.p}%`);
+        textoDonita.textContent = `${Math.round(valoresActuales.p)}%`;
+        lblDisponible.textContent = numero.format(valoresActuales.totalDisponible);
+        lblReservado.textContent = numero.format(valoresActuales.totalReservado);
+      }
+    });
+    
+    donita.setAttribute('aria-label', `${porcentaje.toFixed(1)} por ciento disponible`);
     document.getElementById('graficaInventario').hidden = false;
   }
 
