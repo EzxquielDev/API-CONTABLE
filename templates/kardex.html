@@ -112,12 +112,12 @@
             <td data-label="Costo unit.">${mostrarMoneda(m.costo_unitario)}</td>
             <td data-label="Costo total">${mostrarMoneda(m.costo_total)}</td>
             <td data-label="Qty salida">${mostrarCantidad(m.qty_salida)}</td>
-            <td data-label="Costo de venta (total)">${m.precio_venta != null ? formatoMoneda(m.precio_venta) + (m.precio_estimado ? ' <span class="kx-estimado">*</span>' : "") : SIN_DATOS}</td>
+            <td data-label="Precio de venta (">${m.precio_venta != null ? formatoMoneda(m.precio_venta) + (m.precio_estimado ? ' <span class="kx-estimado">*</span>' : "") : SIN_DATOS}</td>
             <td data-label="Existencia">${mostrarTexto(m.existencia)}</td><td data-label="Saldo">${mostrarMoneda(m.saldo)}</td><td data-label="Referencia">${mostrarTexto(m.referencia)}</td></tr>`;
         });
         bloque.innerHTML = `<table>
           <thead><tr><th>Fecha</th><th>Código</th><th>Descripción</th><th>Qty entrada</th>
-          <th>Costo unit.</th><th>Costo total</th><th>Qty salida</th><th>Costo de venta (total)</th>
+          <th>Costo unit.</th><th>Costo total</th><th>Qty salida</th><th>Precio de venta (total)</th>
           <th>Existencia</th><th>Saldo</th><th>Referencia</th></tr></thead>
           <tbody>${filas}</tbody></table>`;
         contenedor.appendChild(bloque);
