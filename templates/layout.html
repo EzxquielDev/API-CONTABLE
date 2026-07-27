@@ -8,16 +8,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/facturacion.css')}}">  
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     {% block extra_head %}{% endblock %}
-    <title>{{ title }} - ALFOLI</title>
 </head>
 <body>
     <header class="barra-navegacion">
-        <div class="marca">
-            <span style="display: flex; align-items: baseline; gap: 6px;">
-                <a href="{{ url_for('index') }}" style="color: inherit; text-decoration: none;">Alfolí</a> 
-                <a href="https://www.google.com/search?q=significado+Malaqu%C3%ADas+3:10" target="_blank" title="Buscar significado en Google" style="font-size: 0.6rem; color: var(--text-tertiary); font-weight: 500; letter-spacing: 0.02em; text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-tertiary)'">Malaquías 3:10</a>
-            </span>
-        </div>
         <nav aria-label="Navegación principal">
             <a class="{{ 'activo' if request.endpoint == 'index' else '' }}" href="{{ url_for('index') }}"><i class="ph ph-chart-line-up" style="margin-right: 4px;"></i> Ventas</a>
             <a class="{{ 'activo' if request.endpoint == 'inventario' else '' }}" href="{{ url_for('inventario') }}"><i class="ph ph-package" style="margin-right: 4px;"></i> Inventario</a>

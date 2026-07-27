@@ -103,7 +103,7 @@
         bloque.className = `kx-tabla kx-vista-${vistaKardex}`;
         bloque.style.marginBottom = "24px";
         let filas = `<tr class="kx-fila-inicial">
-          <td data-label="Fecha">${SIN_DATOS}</td><td data-label="Código">${mostrarTexto(p.codigo)}</td><td data-label="Descripción">${mostrarTexto(p.descripcion)}</td><td data-label="Qty entrada">${SIN_DATOS}</td><td data-label="Costo unit.">${SIN_DATOS}</td><td data-label="Costo total">${SIN_DATOS}</td><td data-label="Qty salida">${SIN_DATOS}</td><td data-label="Costo de venta (total)">${SIN_DATOS}</td>
+          <td data-label="Fecha">${SIN_DATOS}</td><td data-label="Código">${mostrarTexto(p.codigo)}</td><td data-label="Descripción">${mostrarTexto(p.descripcion)}</td><td data-label="Qty entrada">${SIN_DATOS}</td><td data-label="Costo unit.">${SIN_DATOS}</td><td data-label="Costo total">${SIN_DATOS}</td><td data-label="Qty salida">${SIN_DATOS}</td><td data-label="Precio de venta (total)">${SIN_DATOS}</td>
           <td data-label="Existencia">${mostrarTexto(p.existencia_inicial)}</td><td data-label="Saldo">${mostrarMoneda(p.saldo_inicial)}</td><td data-label="Referencia">saldo inicial</td></tr>`;
         p.movimientos.forEach(m => {
           filas += `<tr>
