@@ -17,9 +17,13 @@ from auth import require_api_key
 # =========================
 from odoo_auth import register_odoo_auth_routes
 from odoo_logout import register_odoo_logout_routes
+from services.background_cache import start_background_cache
 
 
 app = Flask(__name__)
+
+# Iniciar caché en segundo plano (intervalo de 5 minutos)
+start_background_cache(interval_minutes=5)
 
 
 # =========================
@@ -38,9 +42,20 @@ app.register_blueprint(libro_diario_bp)
 
 @app.route("/")
 def index():
+    """Pantalla principal (Dashboard de Negocio)."""
+    return render_template(
+        "dashboard_grafico.html",
+        title="Dashboard",
+        api_key=Config.API_KEY
+    )
+
+
+@app.route("/ventas")
+def ventas_ui():
+    """Pantalla de Ventas (antes facturacion)."""
     return render_template(
         "facturacion.html",
-        title="HOME",
+        title="Ventas",
         api_key=Config.API_KEY
     )
 
@@ -49,7 +64,7 @@ def index():
 def kardex():
     return render_template(
         "kardex.html",
-        title="Kardex de Productos",
+        title="Kardex",
         api_key=Config.API_KEY
     )
 
@@ -58,7 +73,7 @@ def kardex():
 def login():
     return render_template(
         "odoo_login.html",
-        title="Login Odoo",
+        title="Login",
         api_key=Config.API_KEY
     )
 
@@ -68,7 +83,7 @@ def entradas_productos():
     """Pantalla para consultar las entradas de productos de Odoo."""
     return render_template(
         "api.html",
-        title="Entradas - Alfolí",
+        title="Entradas",
         api_key=Config.API_KEY
     )
 
@@ -109,6 +124,8 @@ def inventario():
         title="Inventario de Productos",
         api_key=Config.API_KEY
     )
+
+
 
 
 # =========================

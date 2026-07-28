@@ -3,7 +3,7 @@
 {% block title %}Inventario{% endblock %}
 
 {% block extra_head %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+
 {% endblock %}
 
 {% block content %}
@@ -42,7 +42,6 @@
     <header class="inventario-encabezado">
         <div>
             <h1>Inventario</h1>
-            <p>Consulta existencias y movimientos registrados en Odoo.</p>
         </div>
         <div class="acciones-inventario" id="accionesDescarga" hidden>
             <a id="descargarCsv" href="#">Descargar CSV</a>
@@ -67,7 +66,12 @@
         </form>
 
         <p id="estado">La consulta comenzará al abrir esta sección.</p>
-        <section class="resumen-inventario" id="resumenInventario" hidden></section>
+        <section class="resumen-inventario" id="resumenInventario" hidden>
+            <article><span>Productos</span><strong id="res-productos">0</strong></article>
+            <article><span>Existencia</span><strong id="res-existencia">0</strong></article>
+            <article><span>Disponible</span><strong id="res-disponible">0</strong></article>
+            <article><span>Valor de inventario</span><strong id="res-valor">$0.00</strong></article>
+        </section>
         <section class="panel grafica-inventario" id="graficaInventario" hidden>
             <div class="grafica-dona" id="donaDisponibilidad" role="img"><div class="centro-grafica"><strong id="porcentajeDisponible">0%</strong><span>disponible</span></div></div>
             <div><h2>Disponibilidad de inventario</h2><p>Distribución de las unidades existentes según su disponibilidad actual.</p>
@@ -128,6 +132,34 @@
   const moneda = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
   const numero = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
   let entradasCargadas = false;
+
+  function animarMoneda(id, finalValue) {
+    const obj = { val: 0 };
+    anime({
+      targets: obj,
+      val: finalValue,
+      round: 100,
+      duration: 1500,
+      easing: 'easeOutQuart',
+      update: function() {
+        document.getElementById(id).textContent = moneda.format(obj.val);
+      }
+    });
+  }
+
+  function animarEntero(id, finalValue) {
+    const obj = { val: 0 };
+    anime({
+      targets: obj,
+      val: finalValue,
+      round: 1,
+      duration: 1500,
+      easing: 'easeOutQuart',
+      update: function() {
+        document.getElementById(id).textContent = numero.format(obj.val);
+      }
+    });
+  }
 
   const parametros = (ruta, datos = {}) => {
     const url = new URL(ruta, window.location.origin);
@@ -234,65 +266,36 @@
     if (!productos.length) { const fila = document.createElement('tr'); const td = celda('No hay productos que coincidan con el filtro.', ''); td.colSpan = 8; fila.append(td); filas.append(fila); }
     document.getElementById('tablaPanel').hidden = false;
     
-    const panel = document.getElementById('resumenInventario'); 
-    panel.replaceChildren(); 
-    
-    // Crear la estructura de las tarjetas en 0
-    const tarjetasElementos = [];
-    ['Productos', 'Existencia', 'Disponible', 'Valor de inventario'].forEach(titulo => {
-        const articulo = document.createElement('article'); 
-        const span = document.createElement('span'); 
-        const fuerte = document.createElement('strong'); 
-        span.textContent = titulo; 
-        fuerte.textContent = '0'; 
-        articulo.append(span, fuerte); 
-        panel.append(articulo);
-        tarjetasElementos.push(fuerte);
-    }); 
-    panel.hidden = false;
+    document.getElementById('resumenInventario').hidden = false;
     
     const porcentaje = resumen.existencia_total > 0 ? resumen.disponible_total / resumen.existencia_total * 100 : 0;
     
-    // Configuración para la animación
-    const valoresActuales = { 
-        productos: 0, 
-        existencia: 0, 
-        disponible: 0, 
-        valor: 0, 
-        p: 0, 
-        totalDisponible: 0, 
-        totalReservado: 0 
-    };
+    // Animar las tarjetas estáticas
+    animarEntero('res-productos', resumen.cantidad_productos);
+    animarEntero('res-existencia', resumen.existencia_total);
+    animarEntero('res-disponible', resumen.disponible_total);
+    animarMoneda('res-valor', resumen.valor_inventario_total);
     
+    // Animar el gráfico de dona
+    const objDona = { p: 0, disp: 0, res: 0 };
     const donita = document.getElementById('donaDisponibilidad');
     const textoDonita = document.getElementById('porcentajeDisponible');
     const lblDisponible = document.getElementById('totalDisponible');
     const lblReservado = document.getElementById('totalReservado');
-    
+
     anime({
-      targets: valoresActuales,
-      productos: resumen.cantidad_productos,
-      existencia: resumen.existencia_total,
-      disponible: resumen.disponible_total,
-      valor: resumen.valor_inventario_total,
+      targets: objDona,
       p: porcentaje,
-      totalDisponible: resumen.disponible_total,
-      totalReservado: resumen.reservado_total,
+      disp: resumen.disponible_total,
+      res: resumen.reservado_total,
       round: 1,
       easing: 'easeOutQuart',
       duration: 1500,
       update: function() {
-        // Actualizar tarjetas
-        tarjetasElementos[0].textContent = valoresActuales.productos;
-        tarjetasElementos[1].textContent = numero.format(valoresActuales.existencia);
-        tarjetasElementos[2].textContent = numero.format(valoresActuales.disponible);
-        tarjetasElementos[3].textContent = moneda.format(valoresActuales.valor);
-        
-        // Actualizar gráfico y leyenda
-        donita.style.setProperty('--porcentaje-disponible', `${valoresActuales.p}%`);
-        textoDonita.textContent = `${Math.round(valoresActuales.p)}%`;
-        lblDisponible.textContent = numero.format(valoresActuales.totalDisponible);
-        lblReservado.textContent = numero.format(valoresActuales.totalReservado);
+        donita.style.setProperty('--porcentaje-disponible', `${objDona.p}%`);
+        textoDonita.textContent = `${Math.round(objDona.p)}%`;
+        lblDisponible.textContent = numero.format(objDona.disp);
+        lblReservado.textContent = numero.format(objDona.res);
       }
     });
     

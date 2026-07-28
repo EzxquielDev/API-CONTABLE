@@ -3,7 +3,7 @@
 {% block title %}Reporte de Ventas{% endblock %}
 
 {% block extra_head %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+
 {% endblock %}
 
 {% block content %}
@@ -12,8 +12,7 @@
 <section class="inventario-pagina">
   <header class="inventario-encabezado">
     <div>
-      <h1><i class="ph ph-chart-line-up" style="color: var(--primary); margin-right: 8px;"></i> Reporte de Ventas</h1>
-      <p>Consulta de facturas emitidas y montos totales por período.</p>
+      <h1><i class="ph ph-chart-line-up" style="color: var(--primary); margin-right: 8px;"></i> Ventas</h1>
     </div>
   </header>
 
@@ -80,6 +79,34 @@
     return "$" + Number(valor).toLocaleString("es-SV", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  function animarMoneda(id, finalValue) {
+    const obj = { val: 0 };
+    anime({
+      targets: obj,
+      val: finalValue,
+      round: 100,
+      duration: 1500,
+      easing: 'easeOutQuart',
+      update: function() {
+        document.getElementById(id).textContent = formatoMoneda(obj.val);
+      }
+    });
+  }
+
+  function animarEntero(id, finalValue) {
+    const obj = { val: 0 };
+    anime({
+      targets: obj,
+      val: finalValue,
+      round: 1,
+      duration: 1500,
+      easing: 'easeOutQuart',
+      update: function() {
+        document.getElementById(id).textContent = obj.val;
+      }
+    });
+  }
+
   async function generarReporte() {
     const desde = document.getElementById("desde").value;
     const hasta = document.getElementById("hasta").value;
@@ -105,10 +132,10 @@
         return;
       }
 
-      document.getElementById("totalConIva").textContent = formatoMoneda(data.total_con_iva);
-      document.getElementById("totalSinIva").textContent = formatoMoneda(data.total_sin_iva);
-      document.getElementById("totalIva").textContent = formatoMoneda(data.total_iva);
-      document.getElementById("cantidadFacturas").textContent = data.cantidad_facturas;
+      animarMoneda("totalConIva", data.total_con_iva);
+      animarMoneda("totalSinIva", data.total_sin_iva);
+      animarMoneda("totalIva", data.total_iva);
+      animarEntero("cantidadFacturas", data.cantidad_facturas);
       document.getElementById("panelTotales").style.display = "grid";
 
       const cuerpo = document.getElementById("cuerpoTabla");

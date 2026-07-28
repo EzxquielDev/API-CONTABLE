@@ -4,30 +4,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/Global.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/Inventario.css')}}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/Global.css') }}?v=8">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/Inventario.css')}}?v=2">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/facturacion.css')}}">
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   {% block extra_head %}{% endblock %}
+  <script>
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  </script>
 </head>
 
 <body>
   <header class="barra-navegacion">
     <nav aria-label="Navegación principal">
       <a class="{{ 'activo' if request.endpoint == 'index' else '' }}" href="{{ url_for('index') }}"><i
+          class="ph ph-chart-pie" style="margin-right: 4px;"></i> Dashboard</a>
+      <a class="{{ 'activo' if request.endpoint == 'ventas_ui' else '' }}" href="{{ url_for('ventas_ui') }}"><i
           class="ph ph-chart-line-up" style="margin-right: 4px;"></i> Ventas</a>
       <a class="{{ 'activo' if request.endpoint == 'inventario' else '' }}" href="{{ url_for('inventario') }}"><i
           class="ph ph-package" style="margin-right: 4px;"></i> Inventario</a>
-      <a class="{{ 'activo' if request.endpoint == 'kardex' else '' }}" href="{{ url_for('kardex') }}"><i
-          class="ph ph-file-text" style="margin-right: 4px;"></i> Kardex</a>
-      <a class="{{ 'activo' if request.endpoint == 'entradas_productos' else '' }}"
-        href="{{ url_for('entradas_productos') }}"><i class="ph ph-box-arrow-down" style="margin-right: 4px;"></i>
-        Entradas</a>
-      <a class="{{ 'activo' if request.endpoint == 'estado_financiero' else '' }}"
-        href="{{ url_for('estado_financiero') }}"><i class="ph ph-scales" style="margin-right: 4px;"></i> Estado
-        Financiero</a>
-      <a class="{{ 'activo' if request.endpoint == 'libro_diario' else '' }}" href="{{ url_for('libro_diario') }}"><i
-          class="ph ph-book-open" style="margin-right: 4px;"></i> Libro Diario</a>
+      <details class="menu-api {{ 'activo' if request.endpoint in ['kardex', 'entradas_productos', 'estado_financiero', 'libro_diario'] else '' }}">
+        <summary><i class="ph ph-list" style="margin-right: 4px;"></i> Más</summary>
+        <div class="menu-api-contenido">
+          <a class="{{ 'activo' if request.endpoint == 'kardex' else '' }}" href="{{ url_for('kardex') }}"><i
+              class="ph ph-file-text" style="margin-right: 4px;"></i> Kardex</a>
+          <a class="{{ 'activo' if request.endpoint == 'entradas_productos' else '' }}"
+            href="{{ url_for('entradas_productos') }}"><i class="ph ph-box-arrow-down" style="margin-right: 4px;"></i>
+            Entradas</a>
+          <a class="{{ 'activo' if request.endpoint == 'estado_financiero' else '' }}"
+            href="{{ url_for('estado_financiero') }}"><i class="ph ph-scales" style="margin-right: 4px;"></i> Estado Financiero</a>
+          <a class="{{ 'activo' if request.endpoint == 'libro_diario' else '' }}" href="{{ url_for('libro_diario') }}"><i
+              class="ph ph-book-open" style="margin-right: 4px;"></i> Libro Diario</a>
+        </div>
+      </details>
       <details class="menu-api {{ 'activo' if request.endpoint in ['api_info', 'api_estado'] else '' }}"
         style="display: none;">
         <summary><i class="ph ph-code" style="margin-right: 4px;"></i> API</summary>
@@ -65,6 +78,12 @@
           <a href="{{ url_for('inventario.reporte_xlsx', api_key=api_key) }}">Inventario (Excel)</a>
         </div>
       </details>
+      <button type="button" class="btn-secundario" id="btnToggleTheme" title="Modo Oscuro (Alt+T)"
+        style="margin-left:auto; padding: 8px; border-radius: 6px; cursor: pointer; border: none; background: transparent; color: var(--text-secondary); font-size: 1.25rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
+        onmouseover="this.style.background='var(--border-light)'; this.style.color='var(--text-primary)';"
+        onmouseout="this.style.background='transparent'; this.style.color='var(--text-secondary)';">
+        <i class="ph ph-moon"></i><i class="ph ph-sun"></i>
+      </button>
       <button type="button" class="btn-secundario" id="btnCerrarSesionHeader" title="Cerrar sesión"
         style="margin-left:8px; display:none; padding: 8px; border-radius: 6px; cursor: pointer; border: none; background: var(--bg-page); color: var(--text-secondary); font-size: 1.25rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
         onmouseover="this.style.background='#ef4444'; this.style.color='white';"
@@ -116,6 +135,34 @@
       if (path === '/login') {
         renderLogoutBtn();
       }
+
+      // --- Modo Oscuro y Atajos ---
+      const themeBtn = document.getElementById('btnToggleTheme');
+      
+      function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+      }
+
+      if (themeBtn) {
+        themeBtn.addEventListener('click', toggleTheme);
+      }
+
+      document.addEventListener('keydown', (e) => {
+        // Ignorar si el usuario está escribiendo en un input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        if (e.altKey && !e.ctrlKey && !e.shiftKey) {
+          switch(e.key.toLowerCase()) {
+            case 'd': e.preventDefault(); window.location.href = '/'; break;
+            case 'v': e.preventDefault(); window.location.href = '/ventas'; break;
+            case 'i': e.preventDefault(); window.location.href = '/inventario'; break;
+            case 't': e.preventDefault(); toggleTheme(); break;
+          }
+        }
+      });
     })();
   </script>
 </body>

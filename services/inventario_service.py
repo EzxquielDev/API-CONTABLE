@@ -17,7 +17,7 @@ ODOO_SSL_UNVERIFIED = os.getenv("ODOO_SSL_UNVERIFIED", "false").lower() == "true
 import time
 
 _cache_inventario = {}
-CACHE_TTL = 120  # 2 minutos en segundos
+CACHE_TTL = 300  # 5 minutos en segundos
 
 
 def _get_connection():
@@ -67,10 +67,10 @@ def obtener_almacenes():
 
 
 def _construir_dominio_productos(producto):
-    """Construye el dominio base para buscar productos almacenables."""
+    """Construye el dominio base para buscar productos almacenables por nombre o SKU."""
     domain = [('type', '=', 'product')] 
     if producto:
-        domain.append(('name', 'ilike', producto))
+        domain.extend(['|', ('name', 'ilike', producto), ('default_code', 'ilike', producto)])
     return domain
 
 

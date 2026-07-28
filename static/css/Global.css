@@ -23,12 +23,54 @@
     --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
     --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.08);
     --shadow-xl: 0 20px 40px rgba(15, 23, 42, 0.12);
+    --bg-nav: rgba(255, 255, 255, 0.85);
+    --bg-menu: rgba(255, 255, 255, 0.95);
 }
+
+[data-theme="dark"] {
+    color-scheme: dark;
+    --bg-page: #09090b;
+    --bg-card: #18181b;
+    --text-primary: #fafafa;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    --border-light: #27272a;
+    --border-soft: #3f3f46;
+    --border-medium: #52525b;
+    --accent-dark: #fafafa;
+    --accent-dark-hover: #d4d4d8;
+    --primary: #3b82f6;
+    --primary-light: #1e3a8a;
+    --success: #10b981;
+    --success-light: rgba(16, 185, 129, 0.15);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+    --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.7);
+    --bg-nav: rgba(9, 9, 11, 0.85);
+    --bg-menu: rgba(24, 24, 27, 0.95);
+}
+
+#btnToggleTheme .ph-moon { display: block; }
+#btnToggleTheme .ph-sun { display: none; }
+[data-theme="dark"] #btnToggleTheme .ph-moon { display: none; }
+[data-theme="dark"] #btnToggleTheme .ph-sun { display: block; }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+dialog {
+    color: var(--text-primary);
+    background: var(--bg-card);
+}
+
+dialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 body {
@@ -43,10 +85,10 @@ body {
     min-height: 64px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 24px;
     padding: 0 max(3%, 24px);
-    background: rgba(255, 255, 255, 0.85);
+    background: var(--bg-nav);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border-soft);
@@ -126,7 +168,7 @@ body {
     padding: 12px;
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--bg-menu);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     box-shadow: var(--shadow-lg);
@@ -214,16 +256,21 @@ body {
 
 @media (max-width: 768px) {
     .barra-navegacion { 
-        padding: 12px max(3%, 16px);
-        flex-direction: column; 
-        gap: 12px; 
-        min-height: auto;
+        padding: 10px 12px;
     }
     .barra-navegacion nav { 
         width: 100%; 
-        justify-content: space-between; 
+        justify-content: flex-start; 
+        gap: 4px;
         overflow-x: auto;
         padding-bottom: 4px;
+        -webkit-overflow-scrolling: touch;
+    }
+    .barra-navegacion nav > a,
+    .menu-api summary {
+        font-size: 0.82rem;
+        padding: 8px 10px;
+        white-space: nowrap;
     }
     .menu-api-contenido {
         position: fixed;
@@ -231,7 +278,7 @@ body {
         bottom: 20px;
         left: 50%;
         transform: translateX(-50%) translateY(20px);
-        width: calc(100% - 40px);
+        width: calc(100% - 32px);
     }
     .menu-api[open] .menu-api-contenido,
     .menu-api:hover .menu-api-contenido {

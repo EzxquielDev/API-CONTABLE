@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/Global.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">  
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}?v=2">  
     <title>Login Odoo</title>
 </head>
 <body class="login-body">
@@ -22,8 +22,7 @@
 
           <header class="login-header">
             <p class="login-overline">Seguridad</p>
-            <h1>Login Odoo</h1>
-            <p>Ingresa tu correo y contraseña de Odoo para que la consulta funcione.</p>
+            <h1>Login</h1>
           </header>
 
           <form id="formLoginOdoo" autocomplete="off" class="login-form">
@@ -49,9 +48,12 @@
                 />
             </div>
 
-            <div class="login-submit-container">
-              <button type="submit" class="login-btn">
+            <div class="login-submit-container" style="display: flex; flex-direction: column; gap: 16px; align-items: center;">
+              <button type="submit" class="login-btn" style="width: 100%;">
                 Entrar
+              </button>
+              <button type="button" onclick="document.getElementById('modalPass').showModal()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; text-decoration: underline; font-size: 0.9rem;">
+                ¿Cambiar contraseña de Odoo?
               </button>
             </div>
 
@@ -60,6 +62,41 @@
 
         </main>
     </div>
+
+    <!-- Modal para Cambiar Contraseña -->
+    <dialog id="modalPass" style="padding: 24px; border: 1px solid var(--border-medium, #ccc); border-radius: var(--radius-lg, 8px); width: 100%; max-width: 420px; background: var(--bg-card, #fff); color: var(--text-primary); margin: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+      <form id="formCambiarPass" style="display: flex; flex-direction: column; gap: 16px;">
+        <h3 style="margin: 0; font-family: 'IBM Plex Serif', serif; font-size: 1.5rem; color: var(--text-primary);">Cambiar Contraseña</h3>
+        <p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">Ingresa tus credenciales actuales y la nueva contraseña para actualizarla en Odoo.</p>
+        
+        <div>
+          <label style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary);">Usuario (Email)</label>
+          <input type="email" id="cp_user" required style="width:100%; padding: 10px; margin-top: 4px; border: 1px solid var(--border-medium); border-radius: 6px; box-sizing: border-box; font-family: inherit;">
+        </div>
+        
+        <div>
+          <label style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary);">Contraseña Actual</label>
+          <input type="password" id="cp_old" required style="width:100%; padding: 10px; margin-top: 4px; border: 1px solid var(--border-medium); border-radius: 6px; box-sizing: border-box; font-family: inherit;">
+        </div>
+        
+        <div>
+          <label style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary);">Nueva Contraseña</label>
+          <input type="password" id="cp_new" required style="width:100%; padding: 10px; margin-top: 4px; border: 1px solid var(--border-medium); border-radius: 6px; box-sizing: border-box; font-family: inherit;">
+        </div>
+
+        <div>
+          <label style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary);">Confirmar Nueva Contraseña</label>
+          <input type="password" id="cp_confirm" required style="width:100%; padding: 10px; margin-top: 4px; border: 1px solid var(--border-medium); border-radius: 6px; box-sizing: border-box; font-family: inherit;">
+        </div>
+        
+        <p id="cp_mensaje" style="font-size: 0.9rem; font-weight: 500; min-height: 20px; margin: 0;"></p>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
+          <button type="button" onclick="document.getElementById('modalPass').close()" style="padding: 10px 16px; cursor: pointer; background: transparent; border: 1px solid var(--border-medium); border-radius: 6px; color: var(--text-primary); font-weight: 500;">Cancelar</button>
+          <button type="submit" id="cp_btn" style="padding: 10px 16px; background: var(--primary, #333); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">Cambiar Contraseña</button>
+        </div>
+      </form>
+    </dialog>
 
 <script>
 (() => {
@@ -111,7 +148,7 @@
       estadoEl.textContent = 'Credenciales verificadas correctamente.';
       estadoEl.style.color = '#3c6e47';
 
-      const next = new URLSearchParams(window.location.search).get('next') || '/entradas-productos';
+      const next = new URLSearchParams(window.location.search).get('next') || '/';
       window.location.href = next;
 
     } catch (e) {
@@ -127,6 +164,68 @@
     ev.preventDefault();
     verificar();
   });
+
+  // Lógica de Cambio de Contraseña
+  const formCP = document.getElementById('formCambiarPass');
+  const cpMensaje = document.getElementById('cp_mensaje');
+  
+  formCP.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    cpMensaje.textContent = "Procesando el cambio en Odoo...";
+    cpMensaje.style.color = "var(--primary, blue)";
+    document.getElementById('cp_btn').disabled = true;
+    
+    const user = document.getElementById('cp_user').value.trim();
+    const oldP = document.getElementById('cp_old').value;
+    const newP = document.getElementById('cp_new').value;
+    const confP = document.getElementById('cp_confirm').value;
+    
+    if (newP !== confP) {
+      cpMensaje.style.color = "var(--error, red)";
+      cpMensaje.textContent = "Las nuevas contraseñas no coinciden.";
+      document.getElementById('cp_btn').disabled = false;
+      return;
+    }
+    
+    try {
+      const res = await fetch('/api/odoo/change_password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': '{{ api_key }}'
+        },
+        body: JSON.stringify({
+          odoo_user: user,
+          odoo_password_old: oldP,
+          odoo_password_new: newP
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      
+      if (!res.ok) {
+        throw new Error(data.error || "No se pudo cambiar la contraseña.");
+      }
+      
+      cpMensaje.style.color = "var(--success, green)";
+      cpMensaje.textContent = "¡Contraseña cambiada exitosamente!";
+      
+      // Auto rellenar el formulario de login y cerrar modal
+      setTimeout(() => {
+        document.getElementById('modalPass').close();
+        document.getElementById('odoo_user').value = user;
+        document.getElementById('odoo_password').value = newP;
+        formCP.reset();
+        cpMensaje.textContent = "";
+        document.getElementById('cp_btn').disabled = false;
+      }, 2000);
+      
+    } catch (err) {
+      cpMensaje.style.color = "var(--error, red)";
+      cpMensaje.textContent = err.message;
+      document.getElementById('cp_btn').disabled = false;
+    }
+  });
+
 })();
 </script>
 </body>

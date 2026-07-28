@@ -1,9 +1,20 @@
 from datetime import date
+import time
 from odoo_client import get_odoo_client
+
+_cache_dashboard = {}
+CACHE_TTL = 300
 
 
 def obtener_resumen_financiero():
     """Resumen general: facturación, cobros pendientes, gastos, pagos pendientes."""
+    clave = "resumen_financiero"
+    ahora = time.time()
+    if clave in _cache_dashboard:
+        datos, ts = _cache_dashboard[clave]
+        if ahora - ts < CACHE_TTL:
+            return datos
+
     odoo = get_odoo_client()
     hoy = date.today()
     primer_dia_mes = hoy.replace(day=1).isoformat()
@@ -35,7 +46,7 @@ def obtener_resumen_financiero():
     total_gastos = sum(f["amount_total"] for f in facturas_compra)
     total_por_pagar = sum(f["amount_residual"] for f in facturas_compra)
 
-    return {
+    resultado = {
         "periodo": hoy.strftime("%Y-%m"),
         "total_facturado": round(total_facturado, 2),
         "total_por_cobrar": round(total_por_cobrar, 2),
@@ -45,6 +56,8 @@ def obtener_resumen_financiero():
         "cantidad_facturas_venta": len(facturas_venta),
         "cantidad_facturas_compra": len(facturas_compra),
     }
+    _cache_dashboard[clave] = (resultado, ahora)
+    return resultado
 
 
 def obtener_estado_financiero(desde=None, hasta=None):
@@ -65,6 +78,13 @@ def obtener_estado_financiero(desde=None, hasta=None):
     Si no se indica 'hasta', se usa la fecha de hoy.
     Si no se indica 'desde', se usa el primer día del mes de 'hasta'.
     """
+    clave = f"estado_financiero_{desde}_{hasta}"
+    ahora = time.time()
+    if clave in _cache_dashboard:
+        datos, ts = _cache_dashboard[clave]
+        if ahora - ts < CACHE_TTL:
+            return datos
+
     odoo = get_odoo_client()
 
     if not hasta:
@@ -105,7 +125,7 @@ def obtener_estado_financiero(desde=None, hasta=None):
     total_ya_facturado = sum(o["amount_total"] for o in ordenes_facturadas)
     total_por_facturar = total_ordenado - total_ya_facturado
 
-    return {
+    resultado = {
         "desde": desde,
         "hasta": hasta,
         "ventas": {
@@ -122,6 +142,8 @@ def obtener_estado_financiero(desde=None, hasta=None):
         },
         "resultado_neto": round(total_facturado_ventas - total_ordenado, 2),
     }
+    _cache_dashboard[clave] = (resultado, ahora)
+    return resultado
 
 
 def obtener_libro_diario(desde=None, hasta=None):
@@ -136,6 +158,13 @@ def obtener_libro_diario(desde=None, hasta=None):
     Si no se indica 'hasta', se usa la fecha de hoy.
     Si no se indica 'desde', se usa el primer día del mes de 'hasta'.
     """
+    clave = f"libro_diario_{desde}_{hasta}"
+    ahora = time.time()
+    if clave in _cache_dashboard:
+        datos, ts = _cache_dashboard[clave]
+        if ahora - ts < CACHE_TTL:
+            return datos
+
     odoo = get_odoo_client()
 
     if not hasta:
@@ -193,7 +222,7 @@ def obtener_libro_diario(desde=None, hasta=None):
             "haber": round(haber, 2),
         })
 
-    return {
+    resultado = {
         "desde": desde,
         "hasta": hasta,
         "movimientos": movimientos,
@@ -202,10 +231,19 @@ def obtener_libro_diario(desde=None, hasta=None):
         "diferencia": round(total_debe - total_haber, 2),
         "cantidad_lineas": len(movimientos),
     }
+    _cache_dashboard[clave] = (resultado, ahora)
+    return resultado
 
 
 def obtener_facturas_pendientes(tipo="cliente"):
     """Lista de facturas con saldo pendiente (cliente o proveedor)."""
+    clave = f"facturas_pendientes_{tipo}"
+    ahora = time.time()
+    if clave in _cache_dashboard:
+        datos, ts = _cache_dashboard[clave]
+        if ahora - ts < CACHE_TTL:
+            return datos
+
     odoo = get_odoo_client()
     move_type = "out_invoice" if tipo == "cliente" else "in_invoice"
 
@@ -246,4 +284,5 @@ def obtener_facturas_pendientes(tipo="cliente"):
             "dias_vencida": dias_vencida,
         })
 
+    _cache_dashboard[clave] = (resultado, ahora)
     return resultado

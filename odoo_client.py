@@ -50,6 +50,19 @@ class OdooClient:
             kwargs,
         )
 
+    def execute_kw(self, model, method, args=None, kwargs=None):
+        args = args or []
+        kwargs = kwargs or {}
+        return self.models.execute_kw(
+            self.db,
+            self.uid,
+            self.password,
+            model,
+            method,
+            args,
+            kwargs,
+        )
+
 
 def create_odoo_client(*, url: str, db: str, username: str, password: str, ssl_unverified: bool = False) -> OdooClient:
     return OdooClient(url=url, db=db, username=username, password=password, ssl_unverified=ssl_unverified)

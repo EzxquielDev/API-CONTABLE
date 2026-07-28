@@ -1,356 +1,94 @@
 {% extends "layout.html" %}
 
-{% block extra_head %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link
-  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
-  rel="stylesheet">
-<style>
-  .ef-wrap {
-    --ef-paper: var(--bg-card, #F8F9F5);
-    --ef-rule: var(--border-color, #C7CCC1);
-    --ef-rule-strong: #9AA398;
-    --ef-ink: var(--text-primary, #1C2321);
-    --ef-ink-soft: var(--text-secondary, #55605B);
-    --ef-verde: #2F6F4E;
-    --ef-verde-bg: #E4EFE7;
-    --ef-marron: #7A5C3E;
-    --ef-rojo: #A63B32;
-    --ef-rojo-bg: #F5E3E0;
-    --ef-oro: #A9822F;
-
-    max-width: 840px;
-    margin: 24px auto 60px;
-    background: var(--ef-paper);
-    border: 1px solid var(--ef-rule);
-    color: var(--ef-ink);
-  }
-
-  .ef-encabezado {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 32px 36px 20px;
-    border-bottom: 2px solid var(--ef-ink);
-    gap: 24px;
-  }
-
-  .ef-encabezado .ef-rotulo {
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ef-ink-soft);
-    margin: 0 0 6px;
-  }
-
-  .ef-encabezado h1 {
-    font-family: 'IBM Plex Serif', serif;
-    font-weight: 600;
-    font-size: 26px;
-    margin: 0;
-    letter-spacing: -0.01em;
-  }
-
-  .ef-sello {
-    flex-shrink: 0;
-    width: 84px;
-    height: 84px;
-    border: 2px solid var(--ef-oro);
-    border-radius: 50%;
-    color: var(--ef-oro);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    transform: rotate(-8deg);
-    line-height: 1.3;
-    padding: 6px;
-  }
-
-  .ef-controles {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 18px;
-    padding: 20px 36px;
-    border-bottom: 1px solid var(--ef-rule);
-  }
-
-  .ef-campo label {
-    display: block;
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--ef-ink-soft);
-    margin-bottom: 6px;
-  }
-
-  .ef-campo input[type="date"] {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 14px;
-    padding: 7px 10px;
-    border: 1px solid var(--ef-rule-strong);
-    border-radius: 6px;
-    background: #fff;
-    color: var(--ef-ink);
-  }
-
-  .ef-controles button {
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: 0.01em;
-    padding: 9px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    border: 1px solid var(--ef-ink);
-    background: var(--ef-ink);
-    color: #fff;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: opacity 0.15s ease;
-  }
-
-  .ef-controles button.ef-secundario {
-    background: transparent;
-    color: var(--ef-ink);
-  }
-
-  .ef-controles button:hover {
-    opacity: 0.82;
-  }
-
-  .ef-controles button:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-
-  .ef-mensaje {
-    padding: 12px 36px;
-    font-size: 13px;
-    color: var(--ef-ink-soft);
-    display: none;
-  }
-
-  .ef-mensaje.visible {
-    display: block;
-  }
-
-  .ef-mensaje.error {
-    color: var(--ef-rojo);
-  }
-
-  .ef-cuerpo {
-    padding: 4px 36px 36px;
-    display: none;
-  }
-
-  .ef-cuerpo.visible {
-    display: block;
-  }
-
-  .ef-periodo {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--ef-ink-soft);
-    margin: 18px 0 24px;
-  }
-
-  .ef-columnas {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    border-top: 1px solid var(--ef-rule-strong);
-  }
-
-  .ef-columna {
-    padding: 20px 22px;
-  }
-
-  .ef-columna+.ef-columna {
-    border-left: 1px solid var(--ef-rule-strong);
-  }
-
-  .ef-columna-titulo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-family: 'IBM Plex Serif', serif;
-    font-size: 15px;
-    font-weight: 600;
-    margin: 0 0 14px;
-  }
-
-  .ef-punto {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-  }
-
-  .ef-punto.venta {
-    background: var(--ef-verde);
-  }
-
-  .ef-punto.compra {
-    background: var(--ef-marron);
-  }
-
-  .ef-linea {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    padding: 8px 0;
-    border-bottom: 1px dashed var(--ef-rule);
-    gap: 12px;
-  }
-
-  .ef-linea:last-child {
-    border-bottom: none;
-  }
-
-  .ef-linea .ef-etq {
-    font-size: 13px;
-    color: var(--ef-ink-soft);
-  }
-
-  .ef-linea .ef-val {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 15px;
-    font-weight: 500;
-    white-space: nowrap;
-  }
-
-  .ef-resultado {
-    margin-top: 22px;
-    padding: 20px 22px;
-    border-top: 2px solid var(--ef-ink);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .ef-resultado .ef-etq {
-    font-family: 'IBM Plex Serif', serif;
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  .ef-resultado .ef-sub {
-    display: block;
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--ef-ink-soft);
-    margin-top: 2px;
-  }
-
-  .ef-resultado .ef-val {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 24px;
-    font-weight: 600;
-  }
-
-  .ef-resultado.positivo {
-    background: var(--ef-verde-bg);
-  }
-
-  .ef-resultado.positivo .ef-val {
-    color: var(--ef-verde);
-  }
-
-  .ef-resultado.negativo {
-    background: var(--ef-rojo-bg);
-  }
-
-  .ef-resultado.negativo .ef-val {
-    color: var(--ef-rojo);
-  }
-
-  @media (max-width: 620px) {
-    .ef-encabezado {
-      flex-direction: column;
-    }
-
-    .ef-sello {
-      align-self: flex-end;
-    }
-
-    .ef-columnas {
-      grid-template-columns: 1fr;
-    }
-
-    .ef-columna+.ef-columna {
-      border-left: none;
-      border-top: 1px solid var(--ef-rule-strong);
-    }
-  }
-</style>
-{% endblock %}
+{% block title %}Estado Financiero{% endblock %}
 
 {% block content %}
-<div class="ef-wrap">
-  <div class="ef-encabezado">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/Inventario.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/facturacion.css') }}">
+
+<section class="inventario-pagina">
+  <header class="inventario-encabezado">
     <div>
-      <p class="ef-rotulo">Reporte contable</p>
-      <h1><i class="ph ph-scales" style="margin-right: 6px;"></i>Estado financiero</h1>
+      <h1><i class="ph ph-scales" style="color: var(--primary); margin-right: 8px;"></i> Estado Financiero</h1>
     </div>
-  </div>
+  </header>
 
-  <div class="ef-controles">
-    <div class="ef-campo">
-      <label for="ef-desde">Desde</label>
+  <div class="panel filtros-inventario">
+    <label for="ef-desde">Desde
       <input type="date" id="ef-desde">
-    </div>
-    <div class="ef-campo">
-      <label for="ef-hasta">Hasta</label>
+    </label>
+    <label for="ef-hasta">Hasta
       <input type="date" id="ef-hasta">
-    </div>
-    <button type="button" id="ef-btn-generar"><i class="ph ph-magnifying-glass"></i> Consultar</button>
-    <button type="button" id="ef-btn-excel" class="ef-secundario" disabled><i class="ph ph-file-xls"></i> Descargar
-      Excel</button>
+    </label>
+    <button type="button" id="ef-btn-generar" onclick="consultarEstado()" style="display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--text-primary); border: 1px solid var(--border-medium); box-shadow: none; font-weight: 500;"><i class="ph ph-magnifying-glass" style="margin-right: 6px; font-size: 1.1rem;"></i> Consultar</button>
+    <button type="button" id="ef-btn-excel" onclick="descargarExcel()" disabled style="padding: 10px 18px; display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--text-primary); border: 1px solid var(--border-medium); border-radius: var(--radius-sm); font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: all 0.2s; box-shadow: none;"><i class="ph ph-file-xls" style="margin-right: 6px; font-size: 1.1rem;"></i> Descargar Excel</button>
   </div>
 
-  <p class="ef-mensaje" id="ef-mensaje"></p>
+  <p id="ef-mensaje" style="margin-bottom: 24px; color: var(--text-secondary);"></p>
 
-  <div class="ef-cuerpo" id="ef-cuerpo">
-    <p class="ef-periodo" id="ef-periodo-leido"></p>
+  <div id="ef-cuerpo" style="display:none; display: flex; flex-direction: column; gap: 24px;">
+    <h3 style="font-size: 1.1rem; color: var(--text-primary);" id="ef-periodo-leido"></h3>
 
-    <div class="ef-columnas">
-      <div class="ef-columna">
-        <p class="ef-columna-titulo"><span class="ef-punto venta"></span>Ventas</p>
-        <div class="ef-linea"><span class="ef-etq">Total facturado</span><span class="ef-val"
-            id="ef-v-facturado">—</span></div>
-        <div class="ef-linea"><span class="ef-etq">Total cobrado</span><span class="ef-val" id="ef-v-cobrado">—</span>
-        </div>
-        <div class="ef-linea"><span class="ef-etq">Por cobrar</span><span class="ef-val" id="ef-v-por-cobrar">—</span>
-        </div>
-        <div class="ef-linea"><span class="ef-etq">Facturas</span><span class="ef-val" id="ef-v-cantidad">—</span></div>
+    <!-- Resultado Panel -->
+    <div class="panel" id="ef-resultado" style="padding: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+      <div>
+        <span style="font-size: 1.2rem; font-weight: 600; display: block;">Resultado neto</span>
+        <span style="font-size: 0.9rem; color: var(--text-secondary);">Ventas facturadas − compras ordenadas</span>
       </div>
-      <div class="ef-columna">
-        <p class="ef-columna-titulo"><span class="ef-punto compra"></span>Compras (órdenes)</p>
-        <div class="ef-linea"><span class="ef-etq">Total ordenado</span><span class="ef-val" id="ef-c-ordenado">—</span>
+      <span style="font-family: monospace; font-size: 1.7rem; font-weight: 600;" id="ef-r-neto">—</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+      <!-- Ventas Panel -->
+      <div class="panel" style="padding: 24px;">
+        <p style="font-weight: 600; font-size: 1.1rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+          <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></span>Ventas
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border-light);">
+            <span style="color: var(--text-secondary);">Total facturado</span>
+            <span style="font-family: monospace; font-weight: 600; font-size: 1.05rem;" id="ef-v-facturado">—</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border-light);">
+            <span style="color: var(--text-secondary);">Total cobrado</span>
+            <span style="font-family: monospace; font-weight: 600; font-size: 1.05rem;" id="ef-v-cobrado">—</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border-light);">
+            <span style="color: var(--text-secondary);">Por cobrar</span>
+            <span style="font-family: monospace; font-weight: 600; font-size: 1.05rem;" id="ef-v-por-cobrar">—</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-secondary);">Facturas emitidas</span>
+            <span style="font-family: monospace; font-weight: 600; font-size: 1.05rem;" id="ef-v-cantidad">—</span>
+          </div>
         </div>
-        <div class="ef-linea"><span class="ef-etq">Ya facturado</span><span class="ef-val" id="ef-c-facturado">—</span>
-        </div>
-        <div class="ef-linea"><span class="ef-etq">Pendiente de facturar</span><span class="ef-val"
-            id="ef-c-por-facturar">—</span></div>
-        <div class="ef-linea"><span class="ef-etq">Órdenes</span><span class="ef-val" id="ef-c-cantidad">—</span></div>
       </div>
-    </div>
 
-    <div class="ef-resultado" id="ef-resultado">
-      <span class="ef-etq">Resultado neto
-        <span class="ef-sub">Ventas facturadas − compras ordenadas</span>
-      </span>
-      <span class="ef-val" id="ef-r-neto">—</span>
-    </div>
-  </div>
-</div>
+      <!-- Compras Panel -->
+      <div class="panel" style="padding: 24px;">
+        <p style="font-weight: 600; font-size: 1.1rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+          <span style="width: 8px; height: 8px; background: var(--warning); border-radius: 50%;"></span>Compras (órdenes)
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border-light);">
+            <span style="color: var(--text-secondary);">Total ordenado</span>
+            <span style="font-family: monospace; font-weight: 600; font-size: 1.05rem;" id="ef-c-ordenado">—</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border-light);">
+            <span style="color: var(--text-secondary);">Ya facturado</span>
+            <span style="font-family: monospace; font-weight: 600; font-size: 1.05rem;" id="ef-c-facturado">—</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border-light);">
+            <span style="color: var(--text-secondary);">Pendiente de facturar</span>
+            <span style="font-family: monospace; font-weight: 600; font-size: 1.05rem;" id="ef-c-por-facturar">—</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-secondary);">Órdenes procesadas</span>
+            <span style="font-family: monospace; font-weight: 600; font-size: 1.05rem;" id="ef-c-cantidad">—</span>
+          </div>
+        </div>
+      </div>
+    </div>  </div>
+</section>
 
 <script>
   (function () {
@@ -368,6 +106,34 @@
 
     function hoyISO() {
       return new Date().toISOString().slice(0, 10);
+    }
+
+    function animarMoneda(id, finalValue) {
+      const obj = { val: 0 };
+      anime({
+        targets: obj,
+        val: finalValue,
+        round: 100,
+        duration: 1500,
+        easing: 'easeOutQuart',
+        update: function() {
+          $(id).textContent = formatoMoneda(obj.val);
+        }
+      });
+    }
+
+    function animarEntero(id, finalValue) {
+      const obj = { val: 0 };
+      anime({
+        targets: obj,
+        val: finalValue,
+        round: 1,
+        duration: 1500,
+        easing: 'easeOutQuart',
+        update: function() {
+          $(id).textContent = obj.val;
+        }
+      });
     }
 
     $("ef-desde").value = primerDiaMesActual();
@@ -413,22 +179,22 @@
 
         $("ef-periodo-leido").textContent = `Período consultado: ${data.desde} a ${data.hasta}`;
 
-        $("ef-v-facturado").textContent = formatoMoneda(data.ventas.total_facturado);
-        $("ef-v-cobrado").textContent = formatoMoneda(data.ventas.total_cobrado);
-        $("ef-v-por-cobrar").textContent = formatoMoneda(data.ventas.total_por_cobrar);
-        $("ef-v-cantidad").textContent = data.ventas.cantidad_facturas;
+        animarMoneda("ef-v-facturado", data.ventas.total_facturado);
+        animarMoneda("ef-v-cobrado", data.ventas.total_cobrado);
+        animarMoneda("ef-v-por-cobrar", data.ventas.total_por_cobrar);
+        animarEntero("ef-v-cantidad", data.ventas.cantidad_facturas);
 
-        $("ef-c-ordenado").textContent = formatoMoneda(data.compras.total_ordenado);
-        $("ef-c-facturado").textContent = formatoMoneda(data.compras.total_facturado);
-        $("ef-c-por-facturar").textContent = formatoMoneda(data.compras.total_por_facturar);
-        $("ef-c-cantidad").textContent = data.compras.cantidad_ordenes;
+        animarMoneda("ef-c-ordenado", data.compras.total_ordenado);
+        animarMoneda("ef-c-facturado", data.compras.total_facturado);
+        animarMoneda("ef-c-por-facturar", data.compras.total_por_facturar);
+        animarEntero("ef-c-cantidad", data.compras.cantidad_ordenes);
 
         const resultadoEl = $("ef-resultado");
-        resultadoEl.classList.remove("positivo", "negativo");
-        resultadoEl.classList.add(data.resultado_neto >= 0 ? "positivo" : "negativo");
-        $("ef-r-neto").textContent = formatoMoneda(data.resultado_neto);
+        resultadoEl.style.background = data.resultado_neto >= 0 ? "var(--success-light)" : "#F5E3E0";
+        $("ef-r-neto").style.color = data.resultado_neto >= 0 ? "var(--success)" : "#A63B32";
+        animarMoneda("ef-r-neto", data.resultado_neto);
 
-        $("ef-cuerpo").classList.add("visible");
+        $("ef-cuerpo").style.display = "flex";
         mostrarMensaje("", false);
         $("ef-btn-excel").disabled = false;
       } catch (err) {
@@ -468,9 +234,7 @@
       }
     }
 
-    $("ef-btn-generar").addEventListener("click", consultarEstado);
-    $("ef-btn-excel").addEventListener("click", descargarExcel);
-
+    // We just run the initial query since buttons use inline onclick
     consultarEstado();
   })();
 </script>

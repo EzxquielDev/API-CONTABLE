@@ -13,6 +13,7 @@ from services.inventario_service import (
     obtener_resumen_inventario,
 )
 from services.entradas_service import obtener_todas_entradas_inventario
+from services.background_cache import get_cached_inventario_resumen, get_cached_inventario_reporte
 
 inventario_bp = Blueprint("inventario", __name__, url_prefix="/api/inventario")
 
@@ -44,10 +45,26 @@ def almacenes():
 @inventario_bp.route("/reporte", methods=["GET"])
 @require_api_key
 def reporte():
-    almacen_id, producto = _filtros()
-    pagina = request.args.get("pagina", default=1, type=int)
-    por_pagina = request.args.get("por_pagina", default=100, type=int)
     try:
+        almacen_id, producto = _filtros()
+        pagina = request.args.get("pagina", default=1, type=int)
+        por_pagina = request.args.get("por_pagina", default=100, type=int)
+        
+        # Intentar obtener del caché en memoria (hilo en segundo plano)
+        cached_data = get_cached_inventario_reporte(almacen_id, producto)
+        if cached_data is not None:
+            total = len(cached_data)
+            inicio = (pagina - 1) * por_pagina
+            fin = inicio + por_pagina
+            return jsonify({
+                "total": total,
+                "pagina": pagina,
+                "por_pagina": por_pagina,
+                "paginas": (total + por_pagina - 1) // por_pagina,
+                "productos": cached_data[inicio:fin]
+            })
+            
+        # Si no hay caché o los filtros no aplican, consultar a Odoo
         return jsonify(obtener_reporte_inventario(almacen_id, producto, pagina, por_pagina))
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
@@ -59,6 +76,12 @@ def reporte():
 def resumen():
     try:
         almacen_id, producto = _filtros()
+        
+        # Intentar obtener del caché en memoria
+        cached_resumen = get_cached_inventario_resumen()
+        if cached_resumen is not None and not almacen_id and not producto:
+            return jsonify(cached_resumen)
+            
         return jsonify(obtener_resumen_inventario(almacen_id, producto))
     except ValueError as error:
         return jsonify({"error": str(error)}), 400

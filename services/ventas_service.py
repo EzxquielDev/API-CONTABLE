@@ -1,4 +1,8 @@
+import time
 from odoo_client import get_odoo_client
+
+_cache_ventas = {}
+CACHE_TTL = 300
 
 
 def obtener_reporte_ventas(fecha_desde, fecha_hasta):
@@ -6,6 +10,13 @@ def obtener_reporte_ventas(fecha_desde, fecha_hasta):
 
     fecha_desde / fecha_hasta: strings 'YYYY-MM-DD'
     """
+    clave = f"reporte_ventas_{fecha_desde}_{fecha_hasta}"
+    ahora = time.time()
+    if clave in _cache_ventas:
+        datos, ts = _cache_ventas[clave]
+        if ahora - ts < CACHE_TTL:
+            return datos
+
     odoo = get_odoo_client()
 
     domain = [
@@ -39,7 +50,7 @@ def obtener_reporte_ventas(fecha_desde, fecha_hasta):
         "estado_pago": f["payment_state"],
     } for f in facturas]
 
-    return {
+    resultado = {
         "desde": fecha_desde,
         "hasta": fecha_hasta,
         "cantidad_facturas": len(facturas),
@@ -48,6 +59,8 @@ def obtener_reporte_ventas(fecha_desde, fecha_hasta):
         "total_con_iva": round(total_con_iva, 2),
         "facturas": detalle,
     }
+    _cache_ventas[clave] = (resultado, ahora)
+    return resultado
 
 
 def obtener_productos_mas_vendidos(fecha_desde, fecha_hasta, limite=20):

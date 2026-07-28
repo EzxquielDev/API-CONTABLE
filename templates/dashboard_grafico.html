@@ -1,0 +1,413 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard de Negocio{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_grafico.css') }}?v=5">
+{% endblock %}
+
+{% block content %}
+<section class="dashboard-pagina" data-api-key="{{ api_key }}">
+
+    <div class="cargando-consulta" id="cargandoConsulta" hidden>
+        <div class="cargando-contenido">
+            <span class="indicador-carga"></span>
+            <strong id="mensajeCarga">Cargando gráficas…</strong>
+            <span>Obteniendo datos desde Odoo.</span>
+        </div>
+    </div>
+
+    <header class="dashboard-encabezado">
+        <div>
+            <h1>Dashboard</h1>
+        </div>
+        <form class="filtros-dashboard" id="formularioDashboard">
+            <label for="desde"><span class="label-texto">Desde</span> <input id="desde" name="desde" type="date"></label>
+            <label for="hasta"><span class="label-texto">Hasta</span> <input id="hasta" name="hasta" type="date"></label>
+            <button type="submit">Actualizar Gráficas</button>
+        </form>
+    </header>
+
+    <div class="grid-graficas">
+        <!-- Gráfica de Pastel (Top Productos) -->
+        <article class="grafica-card">
+            <header class="grafica-header">
+                <div>
+                    <h2>Productos Más Vendidos</h2>
+                    <p>Top de productos con mayor importe facturado. <b>(Haz clic en un segmento)</b></p>
+                </div>
+            </header>
+            <div class="grafica-contenedor">
+                <canvas id="chartTopProductos"></canvas>
+            </div>
+        </article>
+
+        <!-- Gráfica de Dona (Inventario) -->
+        <article class="grafica-card">
+            <header class="grafica-header">
+                <div>
+                    <h2>Disponibilidad de Inventario</h2>
+                    <p>Relación entre existencias disponibles y reservadas.</p>
+                </div>
+            </header>
+            <div class="grafica-contenedor">
+                <canvas id="chartInventario"></canvas>
+            </div>
+        </article>
+
+        <!-- Gráfica de Barras (Ventas vs Compras) -->
+        <article class="grafica-card ancho-completo">
+            <header class="grafica-header">
+                <div>
+                    <h2>Ventas y Compras (Estado Financiero)</h2>
+                    <p>Comparativa del periodo seleccionado.</p>
+                </div>
+            </header>
+            <div class="grafica-contenedor">
+                <canvas id="chartFinanciero"></canvas>
+            </div>
+        </article>
+    </div>
+
+    <dialog id="modalProducto" class="panel" style="max-width: 500px; width: 90%; margin: auto; padding: 24px; border: none; border-radius: var(--radius-lg); box-shadow: var(--shadow-xl);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px solid var(--border-soft); padding-bottom: 12px;">
+            <h2 id="modalProductoTitulo" style="font-size: 1.25rem; color: var(--text-primary); margin:0;">Detalle del Producto</h2>
+            <button type="button" onclick="document.getElementById('modalProducto').close()" style="background:none; border:none; font-size:1.5rem; line-height: 1; cursor:pointer; color: var(--text-tertiary);">&times;</button>
+        </div>
+        <div id="modalProductoContenido" style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- Contenido inyectado por JS -->
+        </div>
+    </dialog>
+
+</section>
+
+<script>
+(() => {
+    const raiz = document.querySelector('.dashboard-pagina');
+    const apiKey = raiz.dataset.apiKey;
+    const cargando = document.getElementById('cargandoConsulta');
+    const formulario = document.getElementById('formularioDashboard');
+    const modalDialog = document.getElementById('modalProducto');
+    
+    // Cerrar modal al hacer clic afuera (en el backdrop)
+    modalDialog.addEventListener('click', (e) => {
+        const rect = modalDialog.getBoundingClientRect();
+        if (e.clientY < rect.top || e.clientY > rect.bottom || e.clientX < rect.left || e.clientX > rect.right) {
+            modalDialog.close();
+        }
+    });
+    
+    const getCssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    
+    // Configuración global de Chart.js
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.color = getCssVar('--text-secondary');
+    Chart.defaults.plugins.tooltip.padding = 12;
+    Chart.defaults.plugins.tooltip.cornerRadius = 8;
+    Chart.defaults.plugins.legend.onHover = (e) => e.native.target.style.cursor = 'pointer';
+    Chart.defaults.plugins.legend.onLeave = (e) => e.native.target.style.cursor = 'default';
+    
+    let chartFinanciero, chartTopProductos, chartInventario;
+    
+    const mostrarCarga = () => cargando.hidden = false;
+    const ocultarCarga = () => cargando.hidden = true;
+
+    const hoy = new Date(); 
+    const hace30Dias = new Date(); hace30Dias.setDate(hoy.getDate() - 30);
+    const fechaFormat = d => d.toISOString().slice(0, 10);
+    
+    document.getElementById('desde').value = fechaFormat(hace30Dias);
+    document.getElementById('hasta').value = fechaFormat(hoy);
+
+    const getOdooCreds = () => ({
+        user: localStorage.getItem('odoo_login_user') || '',
+        pass: localStorage.getItem('odoo_login_password') || ''
+    });
+
+    const consultar = async (ruta, datos = {}) => {
+        const creds = getOdooCreds();
+        const url = new URL(ruta, window.location.origin);
+        url.searchParams.set('api_key', apiKey);
+        Object.entries(datos).forEach(([k, v]) => url.searchParams.set(k, v));
+
+        const cacheKey = 'cache_grafico_' + url.toString();
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Date.now() - parsed.time < 300000) { // 5 min cache
+                return parsed.data;
+            }
+        }
+
+        const res = await fetch(url.toString(), {
+            headers: { 'X-Odoo-User': creds.user, 'X-Odoo-Password': creds.pass }
+        });
+        const cuerpo = await res.json();
+        if (!res.ok) throw new Error(cuerpo.error || 'Error en consulta');
+        
+        sessionStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data: cuerpo }));
+        return cuerpo;
+    };
+
+    const formatearMoneda = (valor) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(valor);
+    const formatearNumero = (valor) => new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(valor);
+
+    async function abrirModalProducto(nombreProducto) {
+        const dialog = document.getElementById('modalProducto');
+        const contenido = document.getElementById('modalProductoContenido');
+        const titulo = document.getElementById('modalProductoTitulo');
+        
+        titulo.textContent = 'Cargando...';
+        contenido.innerHTML = '<div style="display:flex; gap:8px; align-items:center; color: var(--text-secondary);"><span class="indicador-carga"></span> Consultando Odoo...</div>';
+        dialog.showModal();
+
+        try {
+            // Odoo devuelve los nombres en ventas como "[SKU] Nombre"
+            // Necesitamos separar el SKU del nombre para buscarlo correctamente en inventario
+            let skuExtraido = null;
+            let nombreBusqueda = nombreProducto;
+            
+            const match = nombreProducto.match(/^\[(.*?)\]\s*(.*)$/);
+            if (match) {
+                skuExtraido = match[1];
+                nombreBusqueda = match[2];
+            }
+
+            const res = await consultar('/api/inventario/reporte', { producto: nombreBusqueda });
+            
+            // Intentar hacer match por SKU primero, o por nombre exacto
+            const producto = res.productos.find(p => 
+                (skuExtraido && p.sku === skuExtraido) || 
+                p.producto === nombreBusqueda
+            ) || res.productos[0];
+            
+            if (!producto) {
+                titulo.textContent = 'Producto no encontrado';
+                contenido.innerHTML = '<p style="color:var(--text-secondary);">No se encontró información de inventario para este producto.</p>';
+                return;
+            }
+
+            titulo.textContent = producto.producto;
+            contenido.innerHTML = `
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div style="background: var(--bg-page); padding: 12px; border-radius: 8px;">
+                        <small style="color: var(--text-secondary); display:block;">SKU</small>
+                        <strong>${producto.sku}</strong>
+                    </div>
+                    <div style="background: var(--bg-page); padding: 12px; border-radius: 8px;">
+                        <small style="color: var(--text-secondary); display:block;">Categoría</small>
+                        <strong>${producto.categoria}</strong>
+                    </div>
+                    <div style="background: var(--bg-page); padding: 12px; border-radius: 8px;">
+                        <small style="color: var(--text-secondary); display:block;">Existencia Física</small>
+                        <strong>${formatearNumero(producto.existencia)} ${producto.unidad_medida}</strong>
+                    </div>
+                    <div style="background: var(--bg-page); padding: 12px; border-radius: 8px;">
+                        <small style="color: var(--text-secondary); display:block;">Disponible</small>
+                        <strong>${formatearNumero(producto.disponible)} ${producto.unidad_medida}</strong>
+                    </div>
+                    <div style="background: var(--bg-page); padding: 12px; border-radius: 8px;">
+                        <small style="color: var(--text-secondary); display:block;">Costo Unitario</small>
+                        <strong>${formatearMoneda(producto.costo_unitario)}</strong>
+                    </div>
+                    <div style="background: var(--bg-page); padding: 12px; border-radius: 8px;">
+                        <small style="color: var(--text-secondary); display:block;">Precio de Venta</small>
+                        <strong>${formatearMoneda(producto.precio_venta)}</strong>
+                    </div>
+                    <div style="grid-column: 1 / -1; background: var(--bg-page); padding: 16px; border-radius: 8px; border-left: 4px solid var(--primary);">
+                        <small style="color: var(--text-secondary); display:block;">Valor Total en Inventario</small>
+                        <span style="font-size:1.25rem; color:var(--primary); font-weight:bold;">${formatearMoneda(producto.valor_inventario)}</span>
+                    </div>
+                </div>
+            `;
+        } catch(e) {
+            titulo.textContent = 'Error';
+            contenido.innerHTML = `<p style="color:red;">${e.message}</p>`;
+        }
+    }
+
+    async function cargarGraficas() {
+        mostrarCarga();
+        try {
+            const desde = document.getElementById('desde').value;
+            const hasta = document.getElementById('hasta').value;
+
+            const [financiero, topProductos, inventario] = await Promise.all([
+                consultar('/api/dashboard/estado-financiero', { desde, hasta }),
+                consultar('/api/ventas/productos-mas-vendidos', { desde, hasta }),
+                consultar('/api/inventario/resumen')
+            ]);
+
+            renderFinanciero(financiero);
+            renderTopProductos(topProductos.productos || []);
+            renderInventario(inventario);
+
+        } catch (error) {
+            console.error(error);
+            alert("Hubo un error cargando las gráficas: " + error.message);
+        } finally {
+            ocultarCarga();
+        }
+    }
+
+    function renderFinanciero(datos) {
+        const ctx = document.getElementById('chartFinanciero').getContext('2d');
+        if (chartFinanciero) chartFinanciero.destroy();
+
+        chartFinanciero = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Ventas Netas', 'Compras (Costo)'],
+                datasets: [{
+                    label: 'Monto ($)',
+                    data: [datos.ventas.total_facturado, datos.compras.total_ordenado],
+                    backgroundColor: [getCssVar('--success'), getCssVar('--accent-dark-hover')],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => ' ' + formatearMoneda(context.raw)
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: getCssVar('--border-soft') },
+                        ticks: { color: getCssVar('--text-secondary') }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: getCssVar('--border-soft') },
+                        ticks: {
+                            color: getCssVar('--text-secondary'),
+                            callback: (val) => formatearMoneda(val)
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderTopProductos(productos) {
+        const ctx = document.getElementById('chartTopProductos').getContext('2d');
+        if (chartTopProductos) chartTopProductos.destroy();
+
+        if (productos.length === 0) {
+            // Mostrar vacío si no hay datos
+            chartTopProductos = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: ['Sin datos'], datasets: [{ data: [1], backgroundColor: [getCssVar('--border-soft')] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { enabled: false } } }
+            });
+            return;
+        }
+
+        // Limitar a Top 7 + Otros para evitar que la leyenda sature la pantalla
+        const maxItems = 7;
+        let chartData = productos;
+        if (productos.length > maxItems) {
+            const top = productos.slice(0, maxItems);
+            const otrosTotal = productos.slice(maxItems).reduce((sum, p) => sum + p.total_vendido, 0);
+            top.push({ producto: 'Otros productos', total_vendido: otrosTotal });
+            chartData = top;
+        }
+
+        const labels = chartData.map(p => {
+            let nombre = p.producto;
+            if (nombre.length > 25) nombre = nombre.substring(0, 25) + '...';
+            return nombre;
+        });
+        const data = chartData.map(p => p.total_vendido);
+        
+        chartTopProductos = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: [
+                        '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', 
+                        '#eab308', '#84cc16', '#94a3b8'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: (event, elements) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const productoReal = chartData[index];
+                        if (productoReal.producto === 'Otros productos') return;
+                        abrirModalProducto(productoReal.producto);
+                    }
+                },
+                onHover: (event, elements) => {
+                    event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                },
+                plugins: {
+                    legend: { 
+                        position: 'right',
+                        labels: {
+                            boxWidth: 12,
+                            font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => ' ' + formatearMoneda(context.raw)
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderInventario(resumen) {
+        const ctx = document.getElementById('chartInventario').getContext('2d');
+        if (chartInventario) chartInventario.destroy();
+
+        chartInventario = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Disponible', 'Reservado'],
+                datasets: [{
+                    data: [resumen.disponible_total, resumen.reservado_total],
+                    backgroundColor: [getCssVar('--success'), getCssVar('--accent-dark-hover')],
+                    borderWidth: 0,
+                    borderColor: 'transparent'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => ' ' + context.raw.toLocaleString('es-MX') + ' unidades'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    formulario.addEventListener('submit', (e) => {
+        e.preventDefault();
+        cargarGraficas();
+    });
+
+    // Carga inicial
+    cargarGraficas();
+})();
+</script>
+{% endblock %}
