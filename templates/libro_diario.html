@@ -1,0 +1,405 @@
+{% extends "layout.html" %}
+
+{% block extra_head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  .ld-wrap {
+    --ld-paper: var(--bg-card, #F8F9F5);
+    --ld-rule: var(--border-color, #C7CCC1);
+    --ld-rule-strong: #9AA398;
+    --ld-ink: var(--text-primary, #1C2321);
+    --ld-ink-soft: var(--text-secondary, #55605B);
+    --ld-verde: #2F6F4E;
+    --ld-verde-bg: #E4EFE7;
+    --ld-rojo: #A63B32;
+    --ld-rojo-bg: #F5E3E0;
+
+    max-width: 1040px;
+    margin: 24px auto 60px;
+    background: var(--ld-paper);
+    border: 1px solid var(--ld-rule);
+    color: var(--ld-ink);
+  }
+
+  .ld-encabezado {
+    padding: 32px 36px 20px;
+    border-bottom: 2px solid var(--ld-ink);
+  }
+
+  .ld-rotulo {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ld-ink-soft);
+    margin: 0 0 6px;
+  }
+
+  .ld-encabezado h1 {
+    font-family: 'IBM Plex Serif', serif;
+    font-weight: 600;
+    font-size: 26px;
+    margin: 0;
+  }
+
+  .ld-controles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 18px;
+    padding: 20px 36px;
+    border-bottom: 1px solid var(--ld-rule);
+  }
+
+  .ld-campo label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ld-ink-soft);
+    margin-bottom: 6px;
+  }
+
+  .ld-campo input[type="date"] {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    padding: 7px 10px;
+    border: 1px solid var(--ld-rule-strong);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--ld-ink);
+  }
+
+  .ld-controles button {
+    font-size: 13px;
+    font-weight: 500;
+    padding: 9px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--ld-ink);
+    background: var(--ld-ink);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.15s ease;
+  }
+
+  .ld-controles button.ld-secundario {
+    background: transparent;
+    color: var(--ld-ink);
+  }
+
+  .ld-controles button:hover { opacity: 0.82; }
+  .ld-controles button:disabled { opacity: 0.4; cursor: default; }
+
+  .ld-mensaje {
+    padding: 12px 36px;
+    font-size: 13px;
+    color: var(--ld-ink-soft);
+    display: none;
+  }
+
+  .ld-mensaje.visible { display: block; }
+  .ld-mensaje.error { color: var(--ld-rojo); }
+
+  .ld-cuerpo { display: none; }
+  .ld-cuerpo.visible { display: block; }
+
+  .ld-periodo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ld-ink-soft);
+    padding: 18px 36px 0;
+  }
+
+  .ld-tabla-envoltorio {
+    max-height: 560px;
+    overflow-y: auto;
+    padding: 0 36px;
+    margin-top: 12px;
+  }
+
+  table.ld-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  table.ld-tabla thead th {
+    position: sticky;
+    top: 0;
+    background: var(--ld-ink);
+    color: #fff;
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    z-index: 1;
+  }
+
+  table.ld-tabla thead th.ld-num { text-align: right; }
+
+  table.ld-tabla tbody td {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--ld-rule);
+    white-space: nowrap;
+  }
+
+  table.ld-tabla tbody td.ld-etiqueta {
+    white-space: normal;
+    max-width: 260px;
+  }
+
+  table.ld-tabla tbody td.ld-num {
+    text-align: right;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  table.ld-tabla tbody tr.ld-grupo-alt { background: rgba(0,0,0,0.02); }
+
+  .ld-totales {
+    margin: 0 36px 28px;
+    padding: 18px 22px;
+    border-top: 2px solid var(--ld-ink);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .ld-totales .ld-fila-totales {
+    display: flex;
+    gap: 28px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+  }
+
+  .ld-totales .ld-fila-totales span.ld-lbl {
+    display: block;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ld-ink-soft);
+    margin-bottom: 3px;
+  }
+
+  .ld-cuadre {
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 6px;
+  }
+
+  .ld-cuadre.ok { background: var(--ld-verde-bg); color: var(--ld-verde); }
+  .ld-cuadre.no-ok { background: var(--ld-rojo-bg); color: var(--ld-rojo); }
+
+  @media (max-width: 620px) {
+    .ld-tabla-envoltorio { padding: 0 16px; }
+    .ld-encabezado, .ld-controles, .ld-periodo { padding-left: 16px; padding-right: 16px; }
+    .ld-totales { margin-left: 16px; margin-right: 16px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ld-wrap">
+  <div class="ld-encabezado">
+    <p class="ld-rotulo">Reporte contable</p>
+    <h1><i class="ph ph-book-open" style="margin-right: 6px;"></i>Libro diario</h1>
+  </div>
+
+  <div class="ld-controles">
+    <div class="ld-campo">
+      <label for="ld-desde">Desde</label>
+      <input type="date" id="ld-desde">
+    </div>
+    <div class="ld-campo">
+      <label for="ld-hasta">Hasta</label>
+      <input type="date" id="ld-hasta">
+    </div>
+    <button type="button" id="ld-btn-generar"><i class="ph ph-magnifying-glass"></i> Consultar</button>
+    <button type="button" id="ld-btn-excel" class="ld-secundario" disabled><i class="ph ph-file-xls"></i> Descargar Excel</button>
+  </div>
+
+  <p class="ld-mensaje" id="ld-mensaje"></p>
+
+  <div class="ld-cuerpo" id="ld-cuerpo">
+    <p class="ld-periodo" id="ld-periodo-leido"></p>
+
+    <div class="ld-tabla-envoltorio">
+      <table class="ld-tabla">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Asiento</th>
+            <th>Diario</th>
+            <th>Cuenta</th>
+            <th>Etiqueta</th>
+            <th class="ld-num">Debe</th>
+            <th class="ld-num">Haber</th>
+          </tr>
+        </thead>
+        <tbody id="ld-tabla-cuerpo"></tbody>
+      </table>
+    </div>
+
+    <div class="ld-totales">
+      <div class="ld-fila-totales">
+        <div><span class="ld-lbl">Total debe</span><span id="ld-total-debe">—</span></div>
+        <div><span class="ld-lbl">Total haber</span><span id="ld-total-haber">—</span></div>
+        <div><span class="ld-lbl">Líneas</span><span id="ld-cantidad">—</span></div>
+      </div>
+      <span class="ld-cuadre" id="ld-cuadre">—</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const apiKey = "{{ api_key }}";
+  const $ = (id) => document.getElementById(id);
+
+  function formatoMoneda(numero) {
+    return Number(numero).toLocaleString("es-SV", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function primerDiaMesActual() {
+    const hoy = new Date();
+    return new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().slice(0, 10);
+  }
+
+  function hoyISO() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  $("ld-desde").value = primerDiaMesActual();
+  $("ld-hasta").value = hoyISO();
+
+  let ultimosParametros = null;
+
+  function mostrarMensaje(texto, esError) {
+    const el = $("ld-mensaje");
+    el.textContent = texto;
+    el.classList.toggle("visible", Boolean(texto));
+    el.classList.toggle("error", Boolean(esError));
+  }
+
+  function renderTabla(movimientos) {
+    const cuerpo = $("ld-tabla-cuerpo");
+    cuerpo.innerHTML = "";
+    let asientoAnterior = null;
+    let alterno = false;
+
+    movimientos.forEach((m) => {
+      if (m.asiento !== asientoAnterior) {
+        alterno = !alterno;
+        asientoAnterior = m.asiento;
+      }
+      const tr = document.createElement("tr");
+      if (alterno) tr.classList.add("ld-grupo-alt");
+      tr.innerHTML = `
+        <td>${m.fecha || ""}</td>
+        <td>${m.asiento || ""}</td>
+        <td>${m.diario || ""}</td>
+        <td>${m.cuenta || ""}</td>
+        <td class="ld-etiqueta">${m.etiqueta || ""}</td>
+        <td class="ld-num">${m.debe ? formatoMoneda(m.debe) : ""}</td>
+        <td class="ld-num">${m.haber ? formatoMoneda(m.haber) : ""}</td>
+      `;
+      cuerpo.appendChild(tr);
+    });
+  }
+
+  async function consultarLibroDiario() {
+    const desde = $("ld-desde").value;
+    const hasta = $("ld-hasta").value;
+
+    if (!desde || !hasta) {
+      mostrarMensaje("Selecciona ambas fechas.", true);
+      return;
+    }
+    if (desde > hasta) {
+      mostrarMensaje("La fecha 'desde' no puede ser mayor que 'hasta'.", true);
+      return;
+    }
+
+    ultimosParametros = new URLSearchParams({ desde, hasta });
+    $("ld-btn-generar").disabled = true;
+    $("ld-btn-excel").disabled = true;
+    mostrarMensaje("Consultando asientos en Odoo…", false);
+    $("ld-cuerpo").classList.remove("visible");
+
+    try {
+      const resp = await fetch(`/api/libro-diario?${ultimosParametros.toString()}`, {
+        headers: { "X-API-Key": apiKey }
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        throw new Error(data.error || "No se pudo obtener el libro diario.");
+      }
+
+      $("ld-periodo-leido").textContent = `Período consultado: ${data.desde} a ${data.hasta}`;
+      renderTabla(data.movimientos);
+
+      $("ld-total-debe").textContent = formatoMoneda(data.total_debe);
+      $("ld-total-haber").textContent = formatoMoneda(data.total_haber);
+      $("ld-cantidad").textContent = data.cantidad_lineas;
+
+      const cuadreEl = $("ld-cuadre");
+      const cuadra = Math.abs(data.diferencia) < 0.01;
+      cuadreEl.textContent = cuadra ? "Cuadra: Debe = Haber" : `Diferencia: ${formatoMoneda(data.diferencia)}`;
+      cuadreEl.classList.toggle("ok", cuadra);
+      cuadreEl.classList.toggle("no-ok", !cuadra);
+
+      $("ld-cuerpo").classList.add("visible");
+      mostrarMensaje(data.movimientos.length ? "" : "No hay asientos contables en este período.", false);
+      $("ld-btn-excel").disabled = false;
+    } catch (err) {
+      mostrarMensaje(err.message, true);
+    } finally {
+      $("ld-btn-generar").disabled = false;
+    }
+  }
+
+  async function descargarExcel() {
+    if (!ultimosParametros) return;
+    $("ld-btn-excel").disabled = true;
+    mostrarMensaje("Generando archivo Excel…", false);
+
+    try {
+      const resp = await fetch(`/api/libro-diario.xlsx?${ultimosParametros.toString()}`, {
+        headers: { "X-API-Key": apiKey }
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data.error || "No se pudo generar el Excel.");
+      }
+      const blob = await resp.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `libro_diario_${$("ld-desde").value}_a_${$("ld-hasta").value}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      mostrarMensaje("", false);
+    } catch (err) {
+      mostrarMensaje(err.message, true);
+    } finally {
+      $("ld-btn-excel").disabled = false;
+    }
+  }
+
+  $("ld-btn-generar").addEventListener("click", consultarLibroDiario);
+  $("ld-btn-excel").addEventListener("click", descargarExcel);
+
+  consultarLibroDiario();
+})();
+</script>
+{% endblock %}

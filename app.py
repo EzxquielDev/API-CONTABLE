@@ -7,6 +7,7 @@ from blueprints.dashboard import dashboard_bp
 from blueprints.ventas import ventas_bp
 from blueprints.kardex import kardex_bp
 from blueprints.inventario import inventario_bp
+from blueprints.libro_diario import libro_diario_bp
 
 from config import Config
 from auth import require_api_key
@@ -28,6 +29,7 @@ app.register_blueprint(dashboard_bp)
 app.register_blueprint(ventas_bp)
 app.register_blueprint(kardex_bp)
 app.register_blueprint(inventario_bp)
+app.register_blueprint(libro_diario_bp)
 
 
 # =========================
@@ -77,6 +79,26 @@ def api_info():
     return redirect(url_for("entradas_productos"))
 
 
+@app.route("/estado-financiero")
+def estado_financiero():
+    """Pantalla del frontend para el estado financiero (ventas vs. compras)."""
+    return render_template(
+        "estado_financiero.html",
+        title="Estado Financiero",
+        api_key=Config.API_KEY
+    )
+
+
+@app.route("/libro-diario")
+def libro_diario():
+    """Pantalla del frontend para el libro diario (asientos contables)."""
+    return render_template(
+        "libro_diario.html",
+        title="Libro Diario",
+        api_key=Config.API_KEY
+    )
+
+
 @app.route("/inventario")
 def inventario():
     """Pantalla del frontend para el inventario."""
@@ -104,6 +126,10 @@ def api_estado():
             "GET /api/dashboard/facturas-pendientes",
             "GET /api/dashboard/facturas-pendientes.csv",
             "GET /api/dashboard/gastos-pendientes",
+            "GET /api/dashboard/estado-financiero?desde=YYYY-MM-DD&hasta=YYYY-MM-DD",
+            "GET /api/dashboard/estado-financiero.xlsx?desde=YYYY-MM-DD&hasta=YYYY-MM-DD",
+            "GET /api/libro-diario?desde=YYYY-MM-DD&hasta=YYYY-MM-DD",
+            "GET /api/libro-diario.xlsx?desde=YYYY-MM-DD&hasta=YYYY-MM-DD",
             "GET /api/ventas/reporte?desde=YYYY-MM-DD&hasta=YYYY-MM-DD",
             "GET /api/ventas/reporte.xlsx?desde=YYYY-MM-DD&hasta=YYYY-MM-DD",
             "GET /api/kardex?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&codigo=(opcional)",

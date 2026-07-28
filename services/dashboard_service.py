@@ -47,6 +47,163 @@ def obtener_resumen_financiero():
     }
 
 
+def obtener_estado_financiero(desde=None, hasta=None):
+    """Estado financiero simple: ventas vs. compras en un rango de fechas.
+
+    - Ventas: facturas de cliente confirmadas (account.move / out_invoice, posted).
+      Es el ingreso ya reconocido/facturado.
+
+    - Compras: Órdenes de Compra confirmadas (purchase.order, state in
+      ['purchase', 'done']). Se usa la Orden de Compra y NO la factura de
+      proveedor porque en la operación real las facturas de proveedor no
+      siempre se validan en Facturación; la Orden de Compra sí se confirma
+      de forma consistente. Esto mide el gasto COMPROMETIDO, no el gasto
+      contablemente reconocido — si en el futuro empiezas a validar todas
+      las facturas de proveedor, conviene volver a usar account.move para
+      mayor exactitud.
+
+    Si no se indica 'hasta', se usa la fecha de hoy.
+    Si no se indica 'desde', se usa el primer día del mes de 'hasta'.
+    """
+    odoo = get_odoo_client()
+
+    if not hasta:
+        hasta = date.today().isoformat()
+    if not desde:
+        fecha_hasta = date.fromisoformat(hasta)
+        desde = fecha_hasta.replace(day=1).isoformat()
+
+    # ---- Ventas: facturas de cliente confirmadas ----
+    facturas_venta = odoo.search_read(
+        "account.move",
+        domain=[
+            ["move_type", "=", "out_invoice"],
+            ["state", "=", "posted"],
+            ["invoice_date", ">=", desde],
+            ["invoice_date", "<=", hasta],
+        ],
+        fields=["amount_total", "amount_residual", "payment_state"],
+    )
+
+    total_facturado_ventas = sum(f["amount_total"] for f in facturas_venta)
+    total_por_cobrar = sum(f["amount_residual"] for f in facturas_venta)
+    total_cobrado = total_facturado_ventas - total_por_cobrar
+
+    # ---- Compras: Órdenes de Compra confirmadas (módulo "Compra") ----
+    ordenes_compra = odoo.search_read(
+        "purchase.order",
+        domain=[
+            ["state", "in", ["purchase", "done"]],
+            ["date_order", ">=", f"{desde} 00:00:00"],
+            ["date_order", "<=", f"{hasta} 23:59:59"],
+        ],
+        fields=["amount_total", "invoice_status", "date_order", "partner_id"],
+    )
+
+    total_ordenado = sum(o["amount_total"] for o in ordenes_compra)
+    ordenes_facturadas = [o for o in ordenes_compra if o.get("invoice_status") == "invoiced"]
+    total_ya_facturado = sum(o["amount_total"] for o in ordenes_facturadas)
+    total_por_facturar = total_ordenado - total_ya_facturado
+
+    return {
+        "desde": desde,
+        "hasta": hasta,
+        "ventas": {
+            "total_facturado": round(total_facturado_ventas, 2),
+            "total_cobrado": round(total_cobrado, 2),
+            "total_por_cobrar": round(total_por_cobrar, 2),
+            "cantidad_facturas": len(facturas_venta),
+        },
+        "compras": {
+            "total_ordenado": round(total_ordenado, 2),
+            "total_facturado": round(total_ya_facturado, 2),
+            "total_por_facturar": round(total_por_facturar, 2),
+            "cantidad_ordenes": len(ordenes_compra),
+        },
+        "resultado_neto": round(total_facturado_ventas - total_ordenado, 2),
+    }
+
+
+def obtener_libro_diario(desde=None, hasta=None):
+    """Libro Diario: listado cronológico de los apuntes contables (débito/crédito)
+    de todos los asientos CONFIRMADOS (posted) en el rango de fechas.
+
+    Se lee de account.move.line (apuntes contables), que es lo que genera Odoo
+    automáticamente al confirmar una factura de cliente, una factura de
+    proveedor, o cualquier otro asiento. No depende de tener el módulo
+    Contabilidad completo: basta con Facturación.
+
+    Si no se indica 'hasta', se usa la fecha de hoy.
+    Si no se indica 'desde', se usa el primer día del mes de 'hasta'.
+    """
+    odoo = get_odoo_client()
+
+    if not hasta:
+        hasta = date.today().isoformat()
+    if not desde:
+        fecha_hasta = date.fromisoformat(hasta)
+        desde = fecha_hasta.replace(day=1).isoformat()
+
+    dominio = [
+        ["parent_state", "=", "posted"],
+        ["date", ">=", desde],
+        ["date", "<=", hasta],
+    ]
+    campos_base = ["date", "move_name", "account_id", "journal_id", "name", "partner_id", "debit", "credit"]
+
+    try:
+        # display_type filtra líneas de sección/nota que no son apuntes reales
+        lineas = odoo.search_read(
+            "account.move.line",
+            domain=dominio + [["display_type", "not in", ["line_section", "line_note"]]],
+            fields=campos_base,
+            order="date asc, move_name asc, id asc",
+        )
+    except Exception:
+        # Compatibilidad con versiones de Odoo donde 'display_type' no existe
+        lineas = odoo.search_read(
+            "account.move.line",
+            domain=dominio,
+            fields=campos_base,
+            order="date asc, move_name asc, id asc",
+        )
+
+    movimientos = []
+    total_debe = 0.0
+    total_haber = 0.0
+
+    for linea in lineas:
+        cuenta = linea["account_id"][1] if linea.get("account_id") else ""
+        diario = linea["journal_id"][1] if linea.get("journal_id") else ""
+        socio = linea["partner_id"][1] if linea.get("partner_id") else ""
+        etiqueta = linea.get("name") or socio or ""
+        debe = linea.get("debit") or 0.0
+        haber = linea.get("credit") or 0.0
+
+        total_debe += debe
+        total_haber += haber
+
+        movimientos.append({
+            "fecha": linea.get("date"),
+            "asiento": linea.get("move_name"),
+            "diario": diario,
+            "cuenta": cuenta,
+            "etiqueta": etiqueta,
+            "debe": round(debe, 2),
+            "haber": round(haber, 2),
+        })
+
+    return {
+        "desde": desde,
+        "hasta": hasta,
+        "movimientos": movimientos,
+        "total_debe": round(total_debe, 2),
+        "total_haber": round(total_haber, 2),
+        "diferencia": round(total_debe - total_haber, 2),
+        "cantidad_lineas": len(movimientos),
+    }
+
+
 def obtener_facturas_pendientes(tipo="cliente"):
     """Lista de facturas con saldo pendiente (cliente o proveedor)."""
     odoo = get_odoo_client()
