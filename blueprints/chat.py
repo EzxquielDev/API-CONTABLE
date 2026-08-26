@@ -8,13 +8,13 @@ import time
 import hashlib
 from datetime import date, timedelta
 from services.ventas_service import obtener_productos_mas_vendidos
-from services.dashboard_service import obtener_resumen_financiero
+from services.dashboard_service import obtener_resumen_financiero, obtener_facturas_pendientes
 
 chat_bp = Blueprint("chat", __name__, url_prefix="/api/chat")
 
 _chat_tasks = {}
 _query_cache = {}
-CACHE_DURATION = 20 * 60
+CACHE_DURATION = 60 * 60  # 1 hora de caché
 
 def get_current_date_info():
     hoy = date.today()
@@ -41,7 +41,8 @@ def consultar_odoo_generico(modelo, dominio, campos, limite=10):
 AVAILABLE_FUNCTIONS = {
     "obtener_productos_mas_vendidos": obtener_productos_mas_vendidos,
     "obtener_resumen_financiero": obtener_resumen_financiero,
-    "consultar_odoo_generico": consultar_odoo_generico
+    "consultar_odoo_generico": consultar_odoo_generico,
+    "obtener_facturas_pendientes": obtener_facturas_pendientes
 }
 
 # Esquema de herramientas
@@ -86,6 +87,23 @@ TOOLS = [
                     "hasta": {
                         "type": "string",
                         "description": "Fecha de fin en formato YYYY-MM-DD"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "obtener_facturas_pendientes",
+            "description": "Lista todas las facturas que tienen un saldo pendiente por pagar (estado_pago: not_paid o partial).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tipo": {
+                        "type": "string",
+                        "description": "El tipo de factura a consultar: 'cliente' (ventas) o 'proveedor' (compras)",
+                        "enum": ["cliente", "proveedor"]
                     }
                 }
             }
@@ -218,7 +236,7 @@ def chat():
             api_key=gemini_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
         )
-        model = "gemini-3.6-flash"
+        model = "gemini-1.5-flash"
     else:
         return jsonify({"error": "API Key no configurada"}), 500
 
@@ -226,9 +244,13 @@ def chat():
     system_message = {
         "role": "system", 
         "content": (
-            f"Eres asistente financiero para usuarios sin conocimientos técnicos. "
-            f"Respuestas CORTAS y coloquiales. NUNCA pidas formatos como YYYY-MM-DD, pregunta con palabras normales. "
-            f"Formatea los montos de dinero SIEMPRE con el símbolo '$' y separadores de miles y decimales (ej: $7,699.12). "
+            f"Eres asistente financiero. Tus respuestas deben ser EXTREMADAMENTE CORTAS Y DIRECTAS, sin saludos, despedidas ni rodeos. "
+            f"Ejemplo de formato ideal: '300 facturas y ganaste $9,000.00'. "
+            f"DEBES invocar SIEMPRE tus herramientas (tools/function call) para obtener los datos reales antes de responder. "
+            f"NUNCA respondas con texto simulando una consulta (ej: no escribas '[Consulta Odoo...]'). Usa la integración de herramientas nativa. "
+            f"Si te piden una lista de 10, da exactamente 10 de forma súper resumida (ej: '1. Bici - $100'). "
+            f"Si te piden los que 'menos se venden' o 'menos ganancia', simplemente da los últimos lugares de tu lista, no des explicaciones de si califican o no. "
+            f"NUNCA pidas formatos como YYYY-MM-DD. Formatea el dinero SIEMPRE con el símbolo '$' y separadores de miles y decimales (ej: $7,699.12). "
             f"NO des gastos ni ganancias si no los piden. SOLO lo solicitado. {get_current_date_info()}"
         )
     }
