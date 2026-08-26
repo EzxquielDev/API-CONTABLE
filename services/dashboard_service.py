@@ -6,9 +6,9 @@ _cache_dashboard = {}
 CACHE_TTL = 300
 
 
-def obtener_resumen_financiero():
+def obtener_resumen_financiero(desde=None, hasta=None):
     """Resumen general: facturación, cobros pendientes, gastos, pagos pendientes."""
-    clave = "resumen_financiero"
+    clave = f"resumen_financiero_{desde}_{hasta}"
     ahora = time.time()
     if clave in _cache_dashboard:
         datos, ts = _cache_dashboard[clave]
@@ -16,27 +16,32 @@ def obtener_resumen_financiero():
             return datos
 
     odoo = get_odoo_client()
-    hoy = date.today()
-    primer_dia_mes = hoy.replace(day=1).isoformat()
+    
+    if not hasta:
+        hasta = date.today().isoformat()
+    if not desde:
+        desde = date.today().replace(day=1).isoformat()
 
-    # Facturas de cliente (ventas) del mes actual, confirmadas
+    # Facturas de cliente (ventas) confirmadas
     facturas_venta = odoo.search_read(
         "account.move",
         domain=[
             ["move_type", "=", "out_invoice"],
             ["state", "=", "posted"],
-            ["invoice_date", ">=", primer_dia_mes],
+            ["invoice_date", ">=", desde],
+            ["invoice_date", "<=", hasta],
         ],
         fields=["amount_total", "amount_residual", "payment_state"],
     )
 
-    # Facturas de proveedor (gastos) del mes actual, confirmadas
+    # Facturas de proveedor (gastos) confirmadas
     facturas_compra = odoo.search_read(
         "account.move",
         domain=[
             ["move_type", "=", "in_invoice"],
             ["state", "=", "posted"],
-            ["invoice_date", ">=", primer_dia_mes],
+            ["invoice_date", ">=", desde],
+            ["invoice_date", "<=", hasta],
         ],
         fields=["amount_total", "amount_residual", "payment_state"],
     )
@@ -47,7 +52,8 @@ def obtener_resumen_financiero():
     total_por_pagar = sum(f["amount_residual"] for f in facturas_compra)
 
     resultado = {
-        "periodo": hoy.strftime("%Y-%m"),
+        "desde": desde,
+        "hasta": hasta,
         "total_facturado": round(total_facturado, 2),
         "total_por_cobrar": round(total_por_cobrar, 2),
         "total_gastos": round(total_gastos, 2),

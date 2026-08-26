@@ -10,6 +10,7 @@
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   {% block extra_head %}{% endblock %}
   <script>
     if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -165,6 +166,286 @@
       });
     })();
   </script>
-</body>
+  <!-- ===============================
+       CHAT DE IA (PANEL LATERAL)
+       =============================== -->
+  <button id="aiChatBtn" class="ai-chat-btn" title="Hablar con IA">
+    <i class="ph ph-chat-teardrop-dots"></i>
+  </button>
 
+  <div id="aiChatPanel" class="ai-chat-panel">
+    <div class="ai-chat-header">
+      <div class="ai-chat-title">
+        <i class="ph ph-robot"></i>
+        <span>Asistente IA</span>
+      </div>
+      <div>
+        <button id="aiChatClear" class="ai-chat-close" title="Limpiar historial" style="margin-right: 5px;"><i class="ph ph-trash"></i></button>
+        <button id="aiChatClose" class="ai-chat-close"><i class="ph ph-x"></i></button>
+      </div>
+    </div>
+    <div id="aiChatMessages" class="ai-chat-messages">
+      <div class="chat-message bot">
+        <div class="msg-bubble">¡Hola! Soy tu asistente inteligente. ¿En qué te puedo ayudar hoy?</div>
+      </div>
+    </div>
+    
+    <!-- Sugerencias de chat -->
+    <div class="ai-chat-suggestions">
+      <button class="chat-suggestion-chip">¿Producto más vendido?</button>
+      <button class="chat-suggestion-chip">Resumen financiero</button>
+      <button class="chat-suggestion-chip">Facturas pendientes</button>
+    </div>
+
+    <div class="ai-chat-input-area">
+      <input type="text" id="aiChatInput" placeholder="Escribe un mensaje..." autocomplete="off">
+      <button id="aiChatSend"><i class="ph ph-paper-plane-right"></i></button>
+    </div>
+  </div>
+
+  <script>
+    // Lógica del Chat de IA
+    const chatBtn = document.getElementById('aiChatBtn');
+    const chatPanel = document.getElementById('aiChatPanel');
+    const chatClose = document.getElementById('aiChatClose');
+    const chatMessages = document.getElementById('aiChatMessages');
+    const chatInput = document.getElementById('aiChatInput');
+    const chatSend = document.getElementById('aiChatSend');
+    const chatClear = document.getElementById('aiChatClear');
+    const suggestionChips = document.querySelectorAll('.chat-suggestion-chip');
+
+    // Historial de mensajes (Cargarlo desde sessionStorage si existe)
+    let conversationHistory = [];
+    const savedHistory = sessionStorage.getItem('aiChatHistory');
+    
+    // Función para reiniciar el chat
+    function resetChat() {
+      if (pollInterval) clearInterval(pollInterval);
+      sessionStorage.removeItem('aiChatPendingTask');
+      chatInput.disabled = false;
+      chatSend.disabled = false;
+      
+      conversationHistory = [{ role: 'system', content: '¡Hola! Soy tu asistente inteligente. ¿En qué te puedo ayudar hoy?', is_greeting: true }];
+      chatMessages.innerHTML = '';
+      addMessage(conversationHistory[0].content, 'bot', false);
+      saveHistory();
+    }
+
+    if (chatClear) {
+      chatClear.addEventListener('click', resetChat);
+    }
+
+    if (savedHistory) {
+      try {
+        conversationHistory = JSON.parse(savedHistory);
+        // Limpiar el chat inicial
+        chatMessages.innerHTML = '';
+        // Reconstruir la UI
+        conversationHistory.forEach(msg => {
+          if (msg.role === 'user') {
+            addMessage(msg.content, 'user', false);
+          } else if (msg.role === 'assistant') {
+            addMessage(msg.content, 'bot', false);
+          } else if (msg.role === 'system' && msg.is_greeting) {
+            addMessage(msg.content, 'bot', false);
+          }
+        });
+      } catch (e) {
+        console.error('Error parseando historial', e);
+      }
+    } else {
+      // Mensaje inicial por defecto si está vacío
+      conversationHistory.push({ role: 'system', content: '¡Hola! Soy tu asistente inteligente. ¿En qué te puedo ayudar hoy?', is_greeting: true });
+    }
+
+    // Mantener abierto si estaba abierto
+    if (sessionStorage.getItem('aiChatOpen') === 'true') {
+      chatPanel.classList.add('open');
+    }
+
+    // Polling function
+    let pollInterval = null;
+    
+    function startPolling(taskId) {
+      if (pollInterval) clearInterval(pollInterval);
+      
+      // Mostrar indicador de carga si no existe
+      let typingDiv = document.querySelector('.chat-message.typing');
+      if (!typingDiv) {
+        typingDiv = document.createElement('div');
+        typingDiv.className = 'chat-message bot typing';
+        typingDiv.innerHTML = '<div class="msg-bubble">... Pensando ...</div>';
+        chatMessages.appendChild(typingDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+      
+      chatInput.disabled = true;
+      chatSend.disabled = true;
+
+      pollInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/chat/status/${taskId}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'done' || data.status === 'error') {
+              clearInterval(pollInterval);
+              sessionStorage.removeItem('aiChatPendingTask');
+              
+              document.querySelectorAll('.chat-message.typing').forEach(el => el.remove());
+              
+              chatInput.disabled = false;
+              chatSend.disabled = false;
+              if (chatPanel.classList.contains('open')) chatInput.focus();
+
+              if (data.status === 'done') {
+                addMessage(data.reply, 'bot');
+                conversationHistory.push({ role: "assistant", content: data.reply });
+                saveHistory();
+                
+                // Si el chat está cerrado, mostrar puntito rojo de notificación
+                if (!chatPanel.classList.contains('open')) {
+                  let badge = chatBtn.querySelector('.notification-badge');
+                  if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'notification-badge';
+                    badge.style.cssText = 'position:absolute; top:-2px; right:-2px; width:12px; height:12px; background:#ef4444; border-radius:50%; border:2px solid var(--bg-page); pointer-events:none;';
+                    chatBtn.style.position = 'relative';
+                    chatBtn.appendChild(badge);
+                  }
+                }
+              } else {
+                addMessage('Hubo un error al procesar tu solicitud: ' + (data.error || 'Error 429 cuota excedida.'), 'bot');
+              }
+            }
+          } else {
+             // Error HTTP en el polling (ej. 404 si se reinició el server)
+             clearInterval(pollInterval);
+             sessionStorage.removeItem('aiChatPendingTask');
+             document.querySelectorAll('.chat-message.typing').forEach(el => el.remove());
+             chatInput.disabled = false;
+             chatSend.disabled = false;
+             addMessage('Se interrumpió la consulta (el servidor pudo haberse reiniciado).', 'bot');
+          }
+        } catch (e) {
+          // Error de red, seguimos intentando hasta que el usuario cierre
+        }
+      }, 2000); // Consultar cada 2 segundos
+    }
+
+    // Si hay una tarea pendiente al recargar/cambiar página, reanudamos el polling
+    const pendingTask = sessionStorage.getItem('aiChatPendingTask');
+    if (pendingTask) {
+      startPolling(pendingTask);
+    }
+
+    function saveHistory() {
+      sessionStorage.setItem('aiChatHistory', JSON.stringify(conversationHistory));
+    }
+
+    // Manejar clics en las sugerencias
+    suggestionChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        if (chatInput.disabled) return;
+        chatInput.value = chip.textContent;
+        sendMessage();
+      });
+    });
+
+    function toggleChat() {
+      chatPanel.classList.toggle('open');
+      const isOpen = chatPanel.classList.contains('open');
+      sessionStorage.setItem('aiChatOpen', isOpen ? 'true' : 'false');
+      
+      if (isOpen) {
+        if (!chatInput.disabled) chatInput.focus();
+        const badge = chatBtn.querySelector('.notification-badge');
+        if (badge) badge.remove();
+      }
+    }
+
+    chatBtn.addEventListener('click', toggleChat);
+    chatClose.addEventListener('click', toggleChat);
+
+    function addMessage(text, sender, save = true) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `chat-message ${sender}`;
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      if (sender === 'bot') {
+        bubble.innerHTML = marked.parse(text);
+      } else {
+        bubble.textContent = text;
+      }
+      msgDiv.appendChild(bubble);
+      chatMessages.appendChild(msgDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+
+      addMessage(text, 'user');
+      chatInput.value = '';
+      
+      chatInput.disabled = true;
+      chatSend.disabled = true;
+
+      // Agregar al historial local
+      conversationHistory.push({ role: "user", content: text });
+      
+      // MANTENEMOS SOLO LOS ÚLTIMOS 5 MENSAJES
+      if (conversationHistory.length > 5) {
+        conversationHistory = conversationHistory.slice(-5);
+      }
+      saveHistory();
+
+      // Mostrar indicador de carga
+      let typingDiv = document.createElement('div');
+      typingDiv.className = 'chat-message bot typing';
+      typingDiv.innerHTML = '<div class="msg-bubble">... Pensando ...</div>';
+      chatMessages.appendChild(typingDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      const messagesToSend = conversationHistory.filter(m => !m.is_greeting);
+
+      try {
+        const response = await fetch('/api/chat/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: messagesToSend })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.task_id) {
+            sessionStorage.setItem('aiChatPendingTask', data.task_id);
+            startPolling(data.task_id);
+          } else {
+             // Fallback si no devuelve task_id
+             document.querySelectorAll('.chat-message.typing').forEach(el => el.remove());
+             addMessage('Error inesperado del servidor.', 'bot');
+             chatInput.disabled = false;
+             chatSend.disabled = false;
+          }
+        } else {
+          document.querySelectorAll('.chat-message.typing').forEach(el => el.remove());
+          addMessage('Hubo un error al iniciar la consulta (429 Cuota excedida).', 'bot');
+          chatInput.disabled = false;
+          chatSend.disabled = false;
+        }
+      } catch (err) {
+        document.querySelectorAll('.chat-message.typing').forEach(el => el.remove());
+        addMessage('Error de red al conectar.', 'bot');
+        chatInput.disabled = false;
+        chatSend.disabled = false;
+      }
+    }
+
+    chatSend.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+  </script>
+</body>
 </html>
