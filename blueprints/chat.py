@@ -228,6 +228,7 @@ def chat():
         "content": (
             f"Eres asistente financiero para usuarios sin conocimientos técnicos. "
             f"Respuestas CORTAS y coloquiales. NUNCA pidas formatos como YYYY-MM-DD, pregunta con palabras normales. "
+            f"Formatea los montos de dinero SIEMPRE con el símbolo '$' y separadores de miles y decimales (ej: $7,699.12). "
             f"NO des gastos ni ganancias si no los piden. SOLO lo solicitado. {get_current_date_info()}"
         )
     }
