@@ -21,10 +21,11 @@ pip install -r requirements.txt
 ```
 
 ## 3. Configurar el archivo .env
-El archivo `.env` nunca se sube a GitHub por seguridad, así que debes crearlo tú mismo:
-1. En la pestaña **Files**, navega a `/home/tuusuario/API-CONTABLE/`.
-2. Escribe `.env` en la caja de texto y dale a "New file".
-3. Pega todo el contenido de tu `.env` (el mismo que usamos en local con tus claves de Odoo y OpenRouter) y guárdalo.
+Como subimos el archivo `.env` a GitHub para facilitarte la vida, ya estará ahí cuando clones el repositorio. Sin embargo, para burlar la seguridad de GitHub tuvimos que ocultar tu clave de OpenRouter, así que debes restaurarla:
+1. En la pestaña **Files** de PythonAnywhere, navega a `/home/tuusuario/API-CONTABLE/`.
+2. Haz clic sobre el archivo `.env` para editarlo.
+3. Busca la línea que dice `OPENROUTER_API_KEY=tu_clave_de_openrouter_aqui` y cámbiala por tu API Key real (`sk-or-v1-...`).
+4. Haz clic en "Save" (Guardar).
 
 ## 4. Configurar la Pestaña "Web"
 1. Ve a la pestaña **Web** y haz clic en **Add a new web app**.
