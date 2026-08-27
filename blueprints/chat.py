@@ -229,7 +229,7 @@ def chat():
             base_url="https://openrouter.ai/api/v1",
             timeout=60.0
         )
-        model = "google/gemini-3.5-flash"
+        model = "google/gemini-3.7-flash"
     elif openai_key and openai_key != "tu_clave_aqui":
         client = OpenAI(api_key=openai_key)
         model = "gpt-4o-mini"
