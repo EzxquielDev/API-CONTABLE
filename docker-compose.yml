@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: api_contable
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      # Montar una carpeta para persistir los reportes si es necesario en el futuro
+      - .:/app
+    # Si quieres que se refresque automáticamente mientras programas, puedes descomentar la siguiente línea:
+    # command: flask run --host=0.0.0.0 --port=5000 --debug
