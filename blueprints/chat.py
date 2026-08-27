@@ -25,6 +25,16 @@ from odoo_client import get_odoo_client
 
 def consultar_odoo_generico(modelo, dominio, campos, limite=10):
     """Permite a la IA hacer consultas genéricas a cualquier tabla de Odoo."""
+    if isinstance(dominio, str):
+        import json
+        import ast
+        try:
+            dominio = json.loads(dominio.replace("'", '"'))
+        except Exception:
+            try:
+                dominio = ast.literal_eval(dominio)
+            except Exception:
+                pass
     try:
         odoo = get_odoo_client()
         registros = odoo.search_read(
@@ -122,9 +132,8 @@ TOOLS = [
                         "description": "El nombre del modelo de Odoo, ej: 'res.partner', 'product.product', 'account.move'"
                     },
                     "dominio": {
-                        "type": "array",
-                        "items": { "type": "array" },
-                        "description": "El dominio de búsqueda de Odoo (ej: [['is_company','=',true]])"
+                        "type": "string",
+                        "description": "El dominio de búsqueda de Odoo en formato JSON string (ej: \"[['is_company','=',true]]\")"
                     },
                     "campos": {
                         "type": "array",
