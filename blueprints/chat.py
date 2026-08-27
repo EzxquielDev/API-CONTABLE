@@ -153,7 +153,8 @@ def process_chat(task_id, client, model, valid_messages, cache_key=None):
             model=model,
             messages=valid_messages,
             tools=TOOLS,
-            tool_choice="auto"
+            tool_choice="auto",
+            max_tokens=300
         )
         response_message = response.choices[0].message
 
@@ -187,7 +188,8 @@ def process_chat(task_id, client, model, valid_messages, cache_key=None):
             # Llamamos de nuevo al modelo con el resultado de la herramienta
             second_response = client.chat.completions.create(
                 model=model,
-                messages=valid_messages
+                messages=valid_messages,
+                max_tokens=300
             )
             final_message = second_response.choices[0].message.content
             _chat_tasks[task_id] = {"status": "done", "reply": final_message}
