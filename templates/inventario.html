@@ -501,22 +501,45 @@
   const LS_KEY_DATA = 'inventario_excel_data';
   const LS_KEY_NOMBRE = 'inventario_excel_nombre';
 
-  // ── Intentar restaurar desde localStorage ──
+  // ── Intentar restaurar desde servidor (PythonAnywhere) o localStorage ──
   (function restaurarCache() {
     const nombre = localStorage.getItem(LS_KEY_NOMBRE);
     const raw    = localStorage.getItem(LS_KEY_DATA);
-    if (!nombre || !raw) return;
-    try {
-      workbook = XLSX.read(raw, { type: 'base64' });
-      archivoNombre.textContent = nombre;
-      dropZone.hidden = true;
-      archivoInfo.hidden = false;
-      construirHojasTabs();
-      cargarHoja(workbook.SheetNames[0]);
-    } catch (e) {
-      localStorage.removeItem(LS_KEY_DATA);
-      localStorage.removeItem(LS_KEY_NOMBRE);
-    }
+
+    // Intentar primero desde el servidor
+    fetch(parametros('/api/inventario/excel-guardado').toString())
+      .then(r => { if (!r.ok) throw new Error('sin archivo'); return r.arrayBuffer(); })
+      .then(buf => {
+        workbook = XLSX.read(buf, { type: 'array' });
+        window._inv_wb = workbook;
+        // Actualizar localStorage con la versión del servidor
+        try {
+          const b64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+          localStorage.setItem(LS_KEY_DATA, b64);
+          localStorage.setItem(LS_KEY_NOMBRE, 'inventario_excel.xlsx');
+        } catch(e) {}
+        archivoNombre.textContent = localStorage.getItem(LS_KEY_NOMBRE) || 'inventario_excel.xlsx';
+        dropZone.hidden = true;
+        archivoInfo.hidden = false;
+        construirHojasTabs();
+        cargarHoja(workbook.SheetNames[0]);
+      })
+      .catch(() => {
+        // Si el servidor no tiene nada, intentar localStorage
+        if (!nombre || !raw) return;
+        try {
+          workbook = XLSX.read(raw, { type: 'base64' });
+          window._inv_wb = workbook;
+          archivoNombre.textContent = nombre;
+          dropZone.hidden = true;
+          archivoInfo.hidden = false;
+          construirHojasTabs();
+          cargarHoja(workbook.SheetNames[0]);
+        } catch (e) {
+          localStorage.removeItem(LS_KEY_DATA);
+          localStorage.removeItem(LS_KEY_NOMBRE);
+        }
+      });
   })();
 
   // ── Drag & Drop ──
@@ -570,9 +593,14 @@
           localStorage.setItem(LS_KEY_DATA, b64);
           localStorage.setItem(LS_KEY_NOMBRE, file.name);
         } catch (storageErr) {
-          // Si el archivo es muy grande y no cabe en localStorage, seguimos sin caché
           console.warn('No se pudo guardar en localStorage (archivo muy grande).');
         }
+        // Subir también al servidor para persistencia en PythonAnywhere
+        const formData = new FormData();
+        formData.append('file', file);
+        fetch(parametros('/api/inventario/subir-excel').toString(), { method: 'POST', body: formData })
+          .then(r => r.json())
+          .catch(err => console.warn('No se pudo subir al servidor:', err));
         archivoNombre.textContent = file.name;
         dropZone.hidden = true;
         archivoInfo.hidden = false;

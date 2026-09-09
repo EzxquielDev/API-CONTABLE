@@ -1,8 +1,10 @@
 import csv
 import io
+import os
 from datetime import date, timedelta
 
 from flask import Blueprint, Response, jsonify, request, send_file
+from werkzeug.utils import secure_filename
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from auth import require_api_key
@@ -16,6 +18,11 @@ from services.entradas_service import obtener_todas_entradas_inventario
 from services.background_cache import get_cached_inventario_resumen, get_cached_inventario_reporte
 
 inventario_bp = Blueprint("inventario", __name__, url_prefix="/api/inventario")
+
+UPLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+EXCEL_GUARDADO = os.path.join(UPLOADS_DIR, "inventario_excel.xlsx")
+
+os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 def _filtros():
     almacen_id = request.args.get("almacen_id", type=int)
@@ -194,3 +201,33 @@ def reporte_xlsx():
     libro.save(buffer)
     buffer.seek(0)
     return send_file(buffer, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name="inventario.xlsx")
+
+
+@inventario_bp.route("/subir-excel", methods=["POST"])
+@require_api_key
+def subir_excel():
+    """Guarda el Excel de inventario externo en el servidor."""
+    if "file" not in request.files:
+        return jsonify({"error": "No se envió ningún archivo."}), 400
+    archivo = request.files["file"]
+    if not archivo.filename or not archivo.filename.lower().endswith((".xlsx", ".xls")):
+        return jsonify({"error": "El archivo debe ser .xlsx o .xls"}), 400
+    try:
+        archivo.save(EXCEL_GUARDADO)
+        return jsonify({"ok": True, "mensaje": "Excel guardado en el servidor."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@inventario_bp.route("/excel-guardado", methods=["GET"])
+@require_api_key
+def excel_guardado():
+    """Devuelve el Excel guardado en el servidor (si existe)."""
+    if not os.path.exists(EXCEL_GUARDADO):
+        return jsonify({"error": "No hay Excel guardado."}), 404
+    return send_file(
+        EXCEL_GUARDADO,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=False,
+        download_name="inventario_excel.xlsx"
+    )
