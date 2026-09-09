@@ -117,6 +117,16 @@
         <button type="button" id="btnCambiarExcel" class="btn-link-sutil">Cambiar archivo</button>
       </div>
 
+      <!-- Historial de Excels guardados en el servidor -->
+      <div id="excelHistorialWrap" class="excel-historial-wrap" hidden>
+        <i class="ph ph-clock-counter-clockwise" style="color:var(--text-tertiary);"></i>
+        <span style="font-size:0.9rem;color:var(--text-secondary);font-weight:500;">Historial guardado:</span>
+        <select id="excelHistorialSelect" class="excel-historial-select">
+          <option value="">— selecciona un archivo —</option>
+        </select>
+        <span id="excelHistorialBadge" class="excel-historial-badge"></span>
+      </div>
+
       <!-- Pestañas de hojas -->
       <div id="excelHojasTabs" class="excel-hojas-tabs" hidden></div>
 
@@ -168,6 +178,7 @@
 (() => {
   const raiz = document.querySelector('.inventario-pagina');
   const apiKey = raiz.dataset.apiKey;
+  window._apiKey = apiKey; // exponer para otros scripts
 
   const storageKey = {
     user: 'odoo_login_user',
@@ -234,6 +245,8 @@
     Object.entries(datos).forEach(([clave, valor]) => { if (valor !== '' && valor != null) url.searchParams.set(clave, valor); });
     return url;
   };
+  window._parametros = parametros; // exponer para otros scripts
+
   const CACHE_TTL_MS = 120000; // 2 minutos
 
   const consultar = async (ruta, datos) => {
@@ -478,6 +491,10 @@
   const archivoInfo   = document.getElementById('excelArchivoInfo');
   const archivoNombre = document.getElementById('excelArchivoNombre');
   const btnCambiar    = document.getElementById('btnCambiarExcel');
+  const historialWrap   = document.getElementById('excelHistorialWrap');
+  const historialSelect = document.getElementById('excelHistorialSelect');
+  const historialBadge  = document.getElementById('excelHistorialBadge');
+
   const hojasTabs     = document.getElementById('excelHojasTabs');
   const resumenGrid   = document.getElementById('excelResumen');
   const buscadorWrap  = document.getElementById('excelBuscadorWrap');
@@ -501,31 +518,95 @@
   const LS_KEY_DATA = 'inventario_excel_data';
   const LS_KEY_NOMBRE = 'inventario_excel_nombre';
 
-  // ── Intentar restaurar desde servidor (PythonAnywhere) o localStorage ──
+  // Helper para construir URLs con api_key (independiente del script de Odoo)
+  const urlApi = (ruta) => {
+    const url = new URL(ruta, window.location.origin);
+    url.searchParams.set('api_key', window._apiKey || '');
+    return url.toString();
+  };
+
+  // Cargar historial de archivos guardados en el servidor
+  function cargarHistorial() {
+    fetch(urlApi('/api/inventario/historial-excel'))
+      .then(r => r.json())
+      .then(data => {
+        if (!data.archivos || data.archivos.length === 0) {
+          if (historialWrap) historialWrap.hidden = true;
+          return;
+        }
+        if (historialBadge) historialBadge.textContent = `${data.total} guardado${data.total > 1 ? 's' : ''}`;
+        if (historialSelect) {
+          historialSelect.innerHTML = '<option value="">📁 Historial (Últimos 15)...</option>';
+          data.archivos.forEach(arch => {
+            const opt = document.createElement('option');
+            opt.value = arch.filename;
+            const fechaStr = arch.fecha ? new Date(arch.fecha).toLocaleDateString() : '';
+            opt.textContent = `${arch.filename} (${arch.tamano_kb} KB - ${fechaStr})`;
+            historialSelect.appendChild(opt);
+          });
+        }
+        if (historialWrap) historialWrap.hidden = false;
+      })
+      .catch(err => console.warn('Error al cargar historial Excel:', err));
+  }
+
+  if (historialSelect) {
+    historialSelect.addEventListener('change', (e) => {
+      const filename = e.target.value;
+      if (!filename) return;
+      fetch(urlApi(`/api/inventario/excel-guardado?filename=${encodeURIComponent(filename)}`))
+        .then(r => { if (!r.ok) throw new Error('Error al descargar archivo del historial'); return r.arrayBuffer(); })
+        .then(buf => {
+          workbook = XLSX.read(buf, { type: 'array' });
+          window._inv_wb = workbook;
+          try {
+            const b64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+            localStorage.setItem(LS_KEY_DATA, b64);
+            localStorage.setItem(LS_KEY_NOMBRE, filename);
+          } catch(e) {}
+          archivoNombre.textContent = filename;
+          dropZone.hidden = true;
+          archivoInfo.hidden = false;
+          construirHojasTabs();
+          cargarHoja(workbook.SheetNames[0]);
+          if (typeof window.actualizarVistaGeneral === 'function') window.actualizarVistaGeneral();
+        })
+        .catch(err => alert('No se pudo cargar la versión del historial.'));
+    });
+  }
+
   (function restaurarCache() {
+    cargarHistorial();
     const nombre = localStorage.getItem(LS_KEY_NOMBRE);
     const raw    = localStorage.getItem(LS_KEY_DATA);
 
-    // Intentar primero desde el servidor
-    fetch(parametros('/api/inventario/excel-guardado').toString())
-      .then(r => { if (!r.ok) throw new Error('sin archivo'); return r.arrayBuffer(); })
-      .then(buf => {
+    // Intentar primero desde el servidor (el más reciente)
+    fetch(urlApi('/api/inventario/excel-guardado'))
+      .then(r => {
+        if (!r.ok) throw new Error('sin archivo');
+        let nombreServidor = 'inventario_excel.xlsx';
+        const disp = r.headers.get('Content-Disposition');
+        if (disp && disp.includes('filename=')) {
+          const match = disp.match(/filename="?([^";]+)"?/);
+          if (match && match[1]) nombreServidor = match[1];
+        }
+        return r.arrayBuffer().then(buf => ({ buf, nombreServidor }));
+      })
+      .then(({ buf, nombreServidor }) => {
         workbook = XLSX.read(buf, { type: 'array' });
         window._inv_wb = workbook;
-        // Actualizar localStorage con la versión del servidor
         try {
           const b64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
           localStorage.setItem(LS_KEY_DATA, b64);
-          localStorage.setItem(LS_KEY_NOMBRE, 'inventario_excel.xlsx');
+          localStorage.setItem(LS_KEY_NOMBRE, nombreServidor);
         } catch(e) {}
-        archivoNombre.textContent = localStorage.getItem(LS_KEY_NOMBRE) || 'inventario_excel.xlsx';
+        archivoNombre.textContent = nombreServidor;
         dropZone.hidden = true;
         archivoInfo.hidden = false;
         construirHojasTabs();
         cargarHoja(workbook.SheetNames[0]);
       })
       .catch(() => {
-        // Si el servidor no tiene nada, intentar localStorage
         if (!nombre || !raw) return;
         try {
           workbook = XLSX.read(raw, { type: 'base64' });
@@ -541,6 +622,7 @@
         }
       });
   })();
+
 
   // ── Drag & Drop ──
   dropZone.addEventListener('click', (e) => {
@@ -598,7 +680,7 @@
         // Subir también al servidor para persistencia en PythonAnywhere
         const formData = new FormData();
         formData.append('file', file);
-        fetch(parametros('/api/inventario/subir-excel').toString(), { method: 'POST', body: formData })
+        fetch(urlApi('/api/inventario/subir-excel'), { method: 'POST', body: formData })
           .then(r => r.json())
           .catch(err => console.warn('No se pudo subir al servidor:', err));
         archivoNombre.textContent = file.name;

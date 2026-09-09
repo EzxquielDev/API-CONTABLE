@@ -203,18 +203,60 @@ def reporte_xlsx():
     return send_file(buffer, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name="inventario.xlsx")
 
 
+import glob
+from datetime import datetime, timedelta
+
+MAX_EXCEL_GUARDADOS = 15
+UN_ANIO = timedelta(days=365)
+
+
+def _listar_excels():
+    """Retorna lista de archivos Excel guardados, ordenados del más reciente al más antiguo."""
+    archivos = glob.glob(os.path.join(UPLOADS_DIR, "inventario_*.xlsx"))
+    archivos.sort(reverse=True)
+    return archivos
+
+
+def _limpiar_excels():
+    """Elimina archivos con más de 1 año o que excedan el máximo permitido."""
+    archivos = _listar_excels()
+    limite_fecha = datetime.now() - UN_ANIO
+    for ruta in archivos:
+        nombre = os.path.basename(ruta)
+        # Intentar extraer fecha del nombre: inventario_YYYY-MM-DD_HHMMSS.xlsx
+        try:
+            parte_fecha = nombre.replace("inventario_", "").replace(".xlsx", "")
+            fecha_archivo = datetime.strptime(parte_fecha, "%Y-%m-%d_%H%M%S")
+            if fecha_archivo < limite_fecha:
+                os.remove(ruta)
+        except (ValueError, OSError):
+            pass
+
+    # Volver a listar y borrar los que excedan el máximo
+    archivos = _listar_excels()
+    for ruta in archivos[MAX_EXCEL_GUARDADOS:]:
+        try:
+            os.remove(ruta)
+        except OSError:
+            pass
+
+
 @inventario_bp.route("/subir-excel", methods=["POST"])
 @require_api_key
 def subir_excel():
-    """Guarda el Excel de inventario externo en el servidor."""
+    """Guarda el Excel con timestamp en el historial del servidor."""
     if "file" not in request.files:
         return jsonify({"error": "No se envió ningún archivo."}), 400
     archivo = request.files["file"]
     if not archivo.filename or not archivo.filename.lower().endswith((".xlsx", ".xls")):
         return jsonify({"error": "El archivo debe ser .xlsx o .xls"}), 400
     try:
-        archivo.save(EXCEL_GUARDADO)
-        return jsonify({"ok": True, "mensaje": "Excel guardado en el servidor."})
+        sello = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        nombre_destino = f"inventario_{sello}.xlsx"
+        ruta_destino = os.path.join(UPLOADS_DIR, nombre_destino)
+        archivo.save(ruta_destino)
+        _limpiar_excels()
+        return jsonify({"ok": True, "nombre": nombre_destino, "mensaje": "Excel guardado en el servidor."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -222,12 +264,47 @@ def subir_excel():
 @inventario_bp.route("/excel-guardado", methods=["GET"])
 @require_api_key
 def excel_guardado():
-    """Devuelve el Excel guardado en el servidor (si existe)."""
-    if not os.path.exists(EXCEL_GUARDADO):
-        return jsonify({"error": "No hay Excel guardado."}), 404
-    return send_file(
-        EXCEL_GUARDADO,
+    """Devuelve el Excel más reciente (o el especificado con ?archivo=nombre)."""
+    nombre = request.args.get("archivo", "")
+    if nombre:
+        ruta = os.path.join(UPLOADS_DIR, os.path.basename(nombre))
+    else:
+        archivos = _listar_excels()
+        if not archivos:
+            return jsonify({"error": "No hay Excel guardado."}), 404
+        ruta = archivos[0]
+
+    if not os.path.exists(ruta):
+        return jsonify({"error": "Archivo no encontrado."}), 404
+
+    response = send_file(
+        ruta,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         as_attachment=False,
-        download_name="inventario_excel.xlsx"
+        download_name=os.path.basename(ruta)
     )
+    response.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
+    response.headers["Content-Disposition"] = f'inline; filename="{os.path.basename(ruta)}"'
+    return response
+
+
+@inventario_bp.route("/excel-historial", methods=["GET"])
+@require_api_key
+def excel_historial():
+    """Devuelve la lista de Excels guardados en el servidor."""
+    archivos = _listar_excels()
+    resultado = []
+    for ruta in archivos:
+        nombre = os.path.basename(ruta)
+        try:
+            parte = nombre.replace("inventario_", "").replace(".xlsx", "")
+            fecha = datetime.strptime(parte, "%Y-%m-%d_%H%M%S")
+            fecha_str = fecha.strftime("%d/%m/%Y %H:%M")
+        except ValueError:
+            fecha_str = "—"
+        resultado.append({
+            "nombre": nombre,
+            "fecha": fecha_str,
+            "tamano_kb": round(os.path.getsize(ruta) / 1024, 1)
+        })
+    return jsonify({"archivos": resultado})
