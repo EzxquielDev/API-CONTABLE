@@ -53,6 +53,7 @@
         <button class="pestana activa" type="button" role="tab" aria-selected="true" aria-controls="panelExistencias" id="tabExistencias">Existencias Odoo</button>
         <button class="pestana" type="button" role="tab" aria-selected="false" aria-controls="panelEntradas" id="tabEntradas">Entradas de compras</button>
         <button class="pestana" type="button" role="tab" aria-selected="false" aria-controls="panelExcel" id="tabExcel"><i class="ph ph-file-xls" style="margin-right:5px;"></i>Inventario Excel</button>
+        <button class="pestana" type="button" role="tab" aria-selected="false" aria-controls="panelGeneral" id="tabGeneral"><i class="ph ph-globe" style="margin-right:5px;"></i>Vista General</button>
     </div>
 
     <section id="panelExistencias" role="tabpanel" aria-labelledby="tabExistencias">
@@ -137,6 +138,29 @@
         </table>
       </div>
 
+    </section>
+
+    <!-- ===================== PANEL VISTA GENERAL ===================== -->
+    <section id="panelGeneral" role="tabpanel" aria-labelledby="tabGeneral" hidden>
+      <p id="estadoGeneral" style="color:var(--text-secondary);margin:16px 0;">Carga el inventario de Odoo y sube el Excel para ver la vista combinada.</p>
+      <div id="generalResumen" class="excel-resumen-grid" hidden></div>
+      <div id="generalBuscadorWrap" class="excel-buscador-wrap" hidden>
+        <i class="ph ph-magnifying-glass"></i>
+        <input type="search" id="generalBuscador" placeholder="Buscar SKU o producto..." autocomplete="off">
+        <span id="generalContador" class="excel-contador"></span>
+      </div>
+      <div id="generalTablaWrap" class="tabla-contenedor" hidden>
+        <table>
+          <thead><tr>
+            <th>SKU</th>
+            <th>Producto</th>
+            <th>Odoo</th>
+            <th>Otras Sucursales</th>
+            <th>Total</th>
+          </tr></thead>
+          <tbody id="generalTablaBody"></tbody>
+        </table>
+      </div>
     </section>
 </section>
 
@@ -276,6 +300,7 @@
         consultar('/api/inventario/resumen', { almacen_id, producto })
       ]);
       pintarInventario(productos, resumen);
+      window._inv_odoo = productos; // exponer para Vista General
       const exportacion = parametros('/api/inventario/reporte.csv', { almacen_id, producto });
       document.getElementById('descargarCsv').href = exportacion;
       document.getElementById('descargarExcel').href = parametros('/api/inventario/reporte.xlsx', { almacen_id, producto });
@@ -416,12 +441,12 @@
 
   // Tabs switching
   function activarTab(tabId, panelId) {
-    ['tabExistencias','tabEntradas','tabExcel'].forEach(id => {
+    ['tabExistencias','tabEntradas','tabExcel','tabGeneral'].forEach(id => {
       const btn = document.getElementById(id);
       btn.classList.remove('activa');
       btn.setAttribute('aria-selected','false');
     });
-    ['panelExistencias','panelEntradas','panelExcel'].forEach(id => {
+    ['panelExistencias','panelEntradas','panelExcel','panelGeneral'].forEach(id => {
       document.getElementById(id).hidden = true;
     });
     document.getElementById(tabId).classList.add('activa');
@@ -432,6 +457,7 @@
   document.getElementById('tabExistencias').addEventListener('click', () => activarTab('tabExistencias','panelExistencias'));
   document.getElementById('tabEntradas').addEventListener('click', () => { activarTab('tabEntradas','panelEntradas'); if (!entradasCargadas) cargarEntradas(); });
   document.getElementById('tabExcel').addEventListener('click', () => activarTab('tabExcel','panelExcel'));
+  document.getElementById('tabGeneral').addEventListener('click', () => { activarTab('tabGeneral','panelGeneral'); if (typeof construirVistaGeneral === 'function') construirVistaGeneral(); });
 
   const hoy = new Date(); const hace365 = new Date(hoy); hace365.setFullYear(hoy.getFullYear() - 1); const fecha = valor => valor.toISOString().slice(0, 10); document.getElementById('desde').value = fecha(hace365); document.getElementById('hasta').value = fecha(hoy);
   const actualizarExcelEntradas = () => { document.getElementById('descargarEntradasExcel').href = parametros('/api/inventario/entradas.xlsx', { desde: document.getElementById('desde').value, hasta: document.getElementById('hasta').value }); };
@@ -537,6 +563,7 @@
     reader.onload = (e) => {
       try {
         workbook = XLSX.read(e.target.result, { type: 'array' });
+        window._inv_wb = workbook; // exponer para Vista General
         // Guardar en localStorage como base64
         const b64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
         try {
@@ -736,5 +763,166 @@
   }
 
 })();
+</script>
+
+<script>
+// ===================== VISTA GENERAL: Odoo + Excel =====================
+function construirVistaGeneral() {
+  const estado    = document.getElementById('estadoGeneral');
+  const resumen   = document.getElementById('generalResumen');
+  const buscWrap  = document.getElementById('generalBuscadorWrap');
+  const tablaWrap = document.getElementById('generalTablaWrap');
+  const tbody     = document.getElementById('generalTablaBody');
+  const buscador  = document.getElementById('generalBuscador');
+  const contador  = document.getElementById('generalContador');
+
+  const odoo = window._inv_odoo || [];
+  const wb   = window._inv_wb  || null;
+
+  // Leer Excel desde localStorage si no está en memoria
+  let wbActivo = wb;
+  if (!wbActivo) {
+    const raw = localStorage.getItem('inventario_excel_data');
+    if (raw) {
+      try { wbActivo = XLSX.read(raw, { type: 'base64' }); window._inv_wb = wbActivo; } catch(e) {}
+    }
+  }
+
+  if (!odoo.length && !wbActivo) {
+    estado.textContent = 'Carga primero el inventario de Odoo (pestaña "Existencias Odoo") y sube el Excel (pestaña "Inventario Excel").';
+    resumen.hidden = true; buscWrap.hidden = true; tablaWrap.hidden = true;
+    return;
+  }
+  if (!odoo.length) {
+    estado.textContent = 'Falta cargar el inventario de Odoo. Ve a "Existencias Odoo" y consulta primero.';
+    resumen.hidden = true; buscWrap.hidden = true; tablaWrap.hidden = true;
+    return;
+  }
+
+  // ── Construir mapa SKU → qty_excel sumando todas las hojas ──
+  const excelMap = {}; // { sku: { qty, nombre } }
+  if (wbActivo) {
+    wbActivo.SheetNames.forEach(hoja => {
+      const data = XLSX.utils.sheet_to_json(wbActivo.Sheets[hoja], { header: 1, defval: '' });
+      if (!data || data.length < 2) return;
+      const enc = data[0].map(h => String(h).toLowerCase().trim());
+      const iSku = enc.findIndex(h => ['item id','codigo','sku','code'].some(p => h.includes(p)));
+      const iQty = enc.findIndex(h => ['qty on hand','existencia','cantidad','qty','stock'].some(p => h.includes(p)));
+      const iNom = enc.findIndex(h => ['description for sales','descripcion','nombre','description','name'].some(p => h.includes(p)));
+      if (iSku === -1 || iQty === -1) return;
+      data.slice(1).forEach(row => {
+        const sku = String(row[iSku] || '').trim();
+        if (!sku) return;
+        const qty = parseFloat(row[iQty]) || 0;
+        if (!excelMap[sku]) excelMap[sku] = { qty: 0, nombre: String(row[iNom] || '') };
+        excelMap[sku].qty += qty;
+      });
+    });
+  }
+
+  // ── Combinar ──
+  const fmt = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
+  const moneda = v => '$' + v.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Empezar con todos los productos de Odoo
+  const combinado = odoo.map(p => {
+    const sku = (p.sku || '').trim();
+    const excelQty = excelMap[sku] ? excelMap[sku].qty : 0;
+    const total = p.existencia + excelQty;
+    return { sku, nombre: p.producto, odoo: p.existencia, excel: excelQty, total };
+  });
+
+  // Agregar productos que solo están en Excel (no en Odoo)
+  Object.entries(excelMap).forEach(([sku, datos]) => {
+    if (!odoo.find(p => (p.sku || '').trim() === sku)) {
+      combinado.push({ sku, nombre: datos.nombre, odoo: 0, excel: datos.qty, total: datos.qty });
+    }
+  });
+
+  // Ordenar por nombre
+  combinado.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  // Guardar para buscador
+  window._inv_general = combinado;
+
+  // ── Tarjetas resumen ──
+  const totalSkus    = combinado.length;
+  const totalOdoo    = combinado.reduce((s, r) => s + r.odoo, 0);
+  const totalExcel   = combinado.reduce((s, r) => s + r.excel, 0);
+  const totalUnids   = combinado.reduce((s, r) => s + r.total, 0);
+
+  resumen.innerHTML = `
+    <div class="excel-res-card" style="--card-accent:#6366f1">
+      <span class="excel-res-label">SKUs totales</span>
+      <strong class="excel-res-valor">${totalSkus.toLocaleString('es-MX')}</strong>
+    </div>
+    <div class="excel-res-card" style="--card-accent:#0ea5e9">
+      <span class="excel-res-label">Unidades Odoo</span>
+      <strong class="excel-res-valor">${fmt.format(totalOdoo)}</strong>
+    </div>
+    <div class="excel-res-card" style="--card-accent:#10b981">
+      <span class="excel-res-label">Unidades otras sucursales</span>
+      <strong class="excel-res-valor">${fmt.format(totalExcel)}</strong>
+    </div>
+    <div class="excel-res-card" style="--card-accent:#f59e0b">
+      <span class="excel-res-label">Total global de unidades</span>
+      <strong class="excel-res-valor">${fmt.format(totalUnids)}</strong>
+    </div>
+  `;
+  resumen.hidden = false;
+
+  // ── Tabla ──
+  renderGeneral(combinado);
+  buscWrap.hidden = false;
+  tablaWrap.hidden = false;
+  estado.textContent = '';
+  actualizarContadorGeneral(combinado.length, combinado.length);
+
+  // ── Buscador ──
+  buscador.oninput = () => {
+    const q = buscador.value.toLowerCase().trim();
+    const filtradas = q
+      ? window._inv_general.filter(r => r.sku.toLowerCase().includes(q) || r.nombre.toLowerCase().includes(q))
+      : window._inv_general;
+    renderGeneral(filtradas);
+    actualizarContadorGeneral(filtradas.length, window._inv_general.length);
+  };
+
+  function renderGeneral(filas) {
+    tbody.innerHTML = '';
+    if (!filas.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">Sin resultados.</td></tr>';
+      return;
+    }
+    filas.forEach(r => {
+      const tr = document.createElement('tr');
+      const celdas = [
+        { v: r.sku,    label: 'SKU' },
+        { v: r.nombre, label: 'Producto' },
+        { v: fmt.format(r.odoo),  label: 'Odoo',   color: r.odoo > 0 ? 'var(--success,#10b981)' : 'var(--text-tertiary)' },
+        { v: fmt.format(r.excel), label: 'Otras Sucursales', color: r.excel > 0 ? '#0ea5e9' : 'var(--text-tertiary)' },
+        { v: fmt.format(r.total), label: 'Total',  bold: true, color: r.total === 0 ? 'var(--danger,#ef4444)' : 'var(--text-primary)' },
+      ];
+      celdas.forEach(c => {
+        const td = document.createElement('td');
+        td.dataset.label = c.label;
+        td.textContent = c.v;
+        if (c.color) td.style.color = c.color;
+        if (c.bold)  td.style.fontWeight = '700';
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function actualizarContadorGeneral(mostrados, total) {
+    contador.textContent = mostrados === total
+      ? `${total.toLocaleString('es-MX')} productos`
+      : `${mostrados.toLocaleString('es-MX')} de ${total.toLocaleString('es-MX')}`;
+  }
+}
+
+// Exponer workbook cuando se cargue el Excel
+const _origProcesar = window._excelProcesarHook;
 </script>
 {% endblock %}
