@@ -465,12 +465,33 @@
   let hojaActiva = null;
   let filasTodas = [];
 
-  // Mapeo de iconos/colores por hoja
+  // Colores por hoja (sin emojis)
   const HOJA_COLORES = {
-    'SAN PEDRO': { color: '#6366f1', emoji: '🇭🇳' },
-    'TEGUS':     { color: '#0ea5e9', emoji: '🏙️' },
-    'NICA':      { color: '#10b981', emoji: '🇳🇮' },
+    'SAN PEDRO': { color: '#6366f1' },
+    'TEGUS':     { color: '#0ea5e9' },
+    'NICA':      { color: '#10b981' },
   };
+
+  const LS_KEY_DATA = 'inventario_excel_data';
+  const LS_KEY_NOMBRE = 'inventario_excel_nombre';
+
+  // ── Intentar restaurar desde localStorage ──
+  (function restaurarCache() {
+    const nombre = localStorage.getItem(LS_KEY_NOMBRE);
+    const raw    = localStorage.getItem(LS_KEY_DATA);
+    if (!nombre || !raw) return;
+    try {
+      workbook = XLSX.read(raw, { type: 'base64' });
+      archivoNombre.textContent = nombre;
+      dropZone.hidden = true;
+      archivoInfo.hidden = false;
+      construirHojasTabs();
+      cargarHoja(workbook.SheetNames[0]);
+    } catch (e) {
+      localStorage.removeItem(LS_KEY_DATA);
+      localStorage.removeItem(LS_KEY_NOMBRE);
+    }
+  })();
 
   // ── Drag & Drop ──
   dropZone.addEventListener('click', (e) => {
@@ -495,6 +516,8 @@
 
   btnCambiar.addEventListener('click', () => {
     workbook = null; hojaActiva = null; filasTodas = [];
+    localStorage.removeItem(LS_KEY_DATA);
+    localStorage.removeItem(LS_KEY_NOMBRE);
     archivoInfo.hidden = true;
     dropZone.hidden = false;
     hojasTabs.hidden = true;
@@ -514,6 +537,15 @@
     reader.onload = (e) => {
       try {
         workbook = XLSX.read(e.target.result, { type: 'array' });
+        // Guardar en localStorage como base64
+        const b64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+        try {
+          localStorage.setItem(LS_KEY_DATA, b64);
+          localStorage.setItem(LS_KEY_NOMBRE, file.name);
+        } catch (storageErr) {
+          // Si el archivo es muy grande y no cabe en localStorage, seguimos sin caché
+          console.warn('No se pudo guardar en localStorage (archivo muy grande).');
+        }
         archivoNombre.textContent = file.name;
         dropZone.hidden = true;
         archivoInfo.hidden = false;
@@ -535,8 +567,7 @@
       btn.type = 'button';
       btn.className = 'excel-hoja-tab';
       btn.dataset.hoja = nombre;
-      const cfg = HOJA_COLORES[nombre.toUpperCase()] || { color: 'var(--primary)', emoji: '📋' };
-      btn.innerHTML = `<span style="font-size:1.1rem">${cfg.emoji}</span> ${nombre}`;
+      btn.textContent = nombre;
       btn.addEventListener('click', () => cargarHoja(nombre));
       hojasTabs.appendChild(btn);
     });
@@ -599,12 +630,12 @@
       const costo = parseFloat(r[idx.costo]) || 0;
       return s + qty * costo;
     }, 0);
-    const cfg = HOJA_COLORES[hoja.toUpperCase()] || { color: 'var(--primary)', emoji: '📋' };
+    const cfg = HOJA_COLORES[hoja.toUpperCase()] || { color: 'var(--primary)' };
 
     resumenGrid.innerHTML = `
       <div class="excel-res-card" style="--card-accent:${cfg.color}">
         <span class="excel-res-label">Sucursal</span>
-        <strong class="excel-res-valor">${cfg.emoji} ${hoja}</strong>
+        <strong class="excel-res-valor">${hoja}</strong>
       </div>
       <div class="excel-res-card" style="--card-accent:#f59e0b">
         <span class="excel-res-label">SKUs / Productos</span>
