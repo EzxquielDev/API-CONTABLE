@@ -516,3 +516,217 @@
         text-align: left;
     }
 }
+
+/* ============================================================
+   INVENTARIO EXCEL — Estilos del visor
+   ============================================================ */
+
+/* Zona de drag & drop */
+.excel-dropzone {
+    border: 2px dashed var(--border-medium);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    padding: 60px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    margin-bottom: 24px;
+}
+
+.excel-dropzone:hover,
+.excel-dropzone.dragover {
+    border-color: var(--primary);
+    background: var(--border-light);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.excel-drop-icon {
+    font-size: 3.5rem;
+    color: #10b981;
+    display: block;
+    margin-bottom: 12px;
+}
+
+.excel-drop-title {
+    margin: 0 0 6px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.excel-drop-sub {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.excel-drop-ext {
+    background: var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 2px 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+}
+
+/* Info del archivo cargado */
+.excel-archivo-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    margin-bottom: 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.excel-archivo-info[hidden] { display: none; }
+
+.btn-link-sutil {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    transition: all 0.15s;
+}
+
+.btn-link-sutil:hover { opacity: 0.75; }
+
+/* Pestañas de hojas Excel */
+.excel-hojas-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.excel-hojas-tabs[hidden] { display: none; }
+
+.excel-hoja-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-full);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.excel-hoja-tab:hover {
+    border-color: var(--primary);
+    color: var(--text-primary);
+    background: var(--border-light);
+}
+
+.excel-hoja-tab.activa {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Tarjetas de resumen */
+.excel-resumen-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.excel-resumen-grid[hidden] { display: none; }
+
+.excel-res-card {
+    padding: 20px 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-left: 4px solid var(--card-accent, var(--primary));
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s;
+}
+
+.excel-res-card:hover { box-shadow: var(--shadow-md); }
+
+.excel-res-label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+}
+
+.excel-res-valor {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+}
+
+.excel-res-moneda { font-size: 1.25rem; }
+
+/* Buscador */
+.excel-buscador-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    margin-bottom: 16px;
+    color: var(--text-secondary);
+}
+
+.excel-buscador-wrap[hidden] { display: none; }
+.excel-buscador-wrap i { font-size: 1.15rem; flex-shrink: 0; }
+
+.excel-buscador-wrap input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 0.97rem;
+    color: var(--text-primary);
+}
+
+.excel-contador {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+}
+
+/* Filas resaltadas por nivel de stock */
+.excel-fila-bajo td { background: rgba(245, 158, 11, 0.06); }
+.excel-fila-cero td { background: rgba(239, 68, 68, 0.06); }
+.excel-fila-bajo:hover td { background: rgba(245, 158, 11, 0.12) !important; }
+.excel-fila-cero:hover td { background: rgba(239, 68, 68, 0.12) !important; }
+
+@media (max-width: 900px) {
+    .excel-resumen-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+    .excel-resumen-grid { grid-template-columns: 1fr; }
+    .excel-dropzone { padding: 40px 20px; }
+}
+

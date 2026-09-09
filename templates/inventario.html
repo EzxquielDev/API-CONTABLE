@@ -50,8 +50,9 @@
     </header>
 
     <div class="pestanas-inventario" role="tablist" aria-label="Secciones de inventario">
-        <button class="pestana activa" type="button" role="tab" aria-selected="true" aria-controls="panelExistencias" id="tabExistencias">Existencias actuales</button>
+        <button class="pestana activa" type="button" role="tab" aria-selected="true" aria-controls="panelExistencias" id="tabExistencias">Existencias Odoo</button>
         <button class="pestana" type="button" role="tab" aria-selected="false" aria-controls="panelEntradas" id="tabEntradas">Entradas de compras</button>
+        <button class="pestana" type="button" role="tab" aria-selected="false" aria-controls="panelExcel" id="tabExcel"><i class="ph ph-file-xls" style="margin-right:5px;"></i>Inventario Excel</button>
     </div>
 
     <section id="panelExistencias" role="tabpanel" aria-labelledby="tabExistencias">
@@ -94,6 +95,48 @@
         <section class="tabla-contenedor vista-lista" id="tablaEntradas" hidden>
             <table><thead><tr><th>Fecha</th><th>Proveedor</th><th>Factura</th><th>Código</th><th>Descripción</th><th>Cantidad</th><th>Unitario</th><th>Total</th></tr></thead><tbody id="filasEntradas"></tbody></table>
         </section>
+    </section>
+
+    <!-- ===================== PANEL EXCEL ===================== -->
+    <section id="panelExcel" role="tabpanel" aria-labelledby="tabExcel" hidden>
+
+      <!-- Zona de subida -->
+      <div id="excelDropZone" class="excel-dropzone">
+        <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display:none">
+        <i class="ph ph-file-xls excel-drop-icon"></i>
+        <p class="excel-drop-title">Arrastra tu archivo Excel aquí</p>
+        <p class="excel-drop-sub">o haz clic para seleccionarlo <span class="excel-drop-ext">.xlsx / .xls</span></p>
+        <button type="button" class="accion-principal" id="btnSeleccionarExcel" style="margin-top:12px">Seleccionar archivo</button>
+      </div>
+
+      <!-- Nombre del archivo cargado -->
+      <div id="excelArchivoInfo" class="excel-archivo-info" hidden>
+        <i class="ph ph-file-xls" style="color:var(--success); font-size:1.3rem;"></i>
+        <span id="excelArchivoNombre"></span>
+        <button type="button" id="btnCambiarExcel" class="btn-link-sutil">Cambiar archivo</button>
+      </div>
+
+      <!-- Pestañas de hojas -->
+      <div id="excelHojasTabs" class="excel-hojas-tabs" hidden></div>
+
+      <!-- Resumen por sucursal -->
+      <div id="excelResumen" class="excel-resumen-grid" hidden></div>
+
+      <!-- Barra de búsqueda -->
+      <div id="excelBuscadorWrap" class="excel-buscador-wrap" hidden>
+        <i class="ph ph-magnifying-glass"></i>
+        <input type="search" id="excelBuscador" placeholder="Buscar producto, SKU, descripción..." autocomplete="off">
+        <span id="excelContador" class="excel-contador"></span>
+      </div>
+
+      <!-- Tabla de productos -->
+      <div id="excelTablaWrap" class="tabla-contenedor" hidden>
+        <table id="excelTabla">
+          <thead id="excelTablaHead"></thead>
+          <tbody id="excelTablaBody"></tbody>
+        </table>
+      </div>
+
     </section>
 </section>
 
@@ -370,12 +413,297 @@
   document.getElementById('formularioInventario').addEventListener('submit', event => { event.preventDefault(); cargarInventario(); });
 
   document.getElementById('formularioEntradas').addEventListener('submit', event => { event.preventDefault(); cargarEntradas(); });
-  document.getElementById('tabExistencias').addEventListener('click', () => { document.getElementById('panelExistencias').hidden = false; document.getElementById('panelEntradas').hidden = true; document.getElementById('tabExistencias').classList.add('activa'); document.getElementById('tabEntradas').classList.remove('activa'); document.getElementById('tabExistencias').setAttribute('aria-selected', 'true'); document.getElementById('tabEntradas').setAttribute('aria-selected', 'false'); });
-  document.getElementById('tabEntradas').addEventListener('click', () => { document.getElementById('panelExistencias').hidden = true; document.getElementById('panelEntradas').hidden = false; document.getElementById('tabExistencias').classList.remove('activa'); document.getElementById('tabEntradas').classList.add('activa'); document.getElementById('tabExistencias').setAttribute('aria-selected', 'false'); document.getElementById('tabEntradas').setAttribute('aria-selected', 'true'); if (!entradasCargadas) cargarEntradas(); });
+
+  // Tabs switching
+  function activarTab(tabId, panelId) {
+    ['tabExistencias','tabEntradas','tabExcel'].forEach(id => {
+      const btn = document.getElementById(id);
+      btn.classList.remove('activa');
+      btn.setAttribute('aria-selected','false');
+    });
+    ['panelExistencias','panelEntradas','panelExcel'].forEach(id => {
+      document.getElementById(id).hidden = true;
+    });
+    document.getElementById(tabId).classList.add('activa');
+    document.getElementById(tabId).setAttribute('aria-selected','true');
+    document.getElementById(panelId).hidden = false;
+  }
+
+  document.getElementById('tabExistencias').addEventListener('click', () => activarTab('tabExistencias','panelExistencias'));
+  document.getElementById('tabEntradas').addEventListener('click', () => { activarTab('tabEntradas','panelEntradas'); if (!entradasCargadas) cargarEntradas(); });
+  document.getElementById('tabExcel').addEventListener('click', () => activarTab('tabExcel','panelExcel'));
+
   const hoy = new Date(); const hace365 = new Date(hoy); hace365.setFullYear(hoy.getFullYear() - 1); const fecha = valor => valor.toISOString().slice(0, 10); document.getElementById('desde').value = fecha(hace365); document.getElementById('hasta').value = fecha(hoy);
   const actualizarExcelEntradas = () => { document.getElementById('descargarEntradasExcel').href = parametros('/api/inventario/entradas.xlsx', { desde: document.getElementById('desde').value, hasta: document.getElementById('hasta').value }); };
   document.getElementById('desde').addEventListener('change', actualizarExcelEntradas); document.getElementById('hasta').addEventListener('change', actualizarExcelEntradas); actualizarExcelEntradas();
   Promise.all([cargarAlmacenes(), cargarInventario()]).catch(error => { document.getElementById('estado').textContent = `No se pudo consultar Odoo: ${error.message}`; ocultarCarga(); });
+})();
+
+</script>
+
+<!-- ======================== SCRIPT LECTOR DE EXCEL ======================== -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script>
+(() => {
+  // ── Referencias DOM ──
+  const dropZone      = document.getElementById('excelDropZone');
+  const fileInput     = document.getElementById('excelFileInput');
+  const btnSeleccionar = document.getElementById('btnSeleccionarExcel');
+  const archivoInfo   = document.getElementById('excelArchivoInfo');
+  const archivoNombre = document.getElementById('excelArchivoNombre');
+  const btnCambiar    = document.getElementById('btnCambiarExcel');
+  const hojasTabs     = document.getElementById('excelHojasTabs');
+  const resumenGrid   = document.getElementById('excelResumen');
+  const buscadorWrap  = document.getElementById('excelBuscadorWrap');
+  const buscador      = document.getElementById('excelBuscador');
+  const contador      = document.getElementById('excelContador');
+  const tablaWrap     = document.getElementById('excelTablaWrap');
+  const tablaHead     = document.getElementById('excelTablaHead');
+  const tablaBody     = document.getElementById('excelTablaBody');
+
+  let workbook = null;
+  let hojaActiva = null;
+  let filasTodas = [];
+
+  // Mapeo de iconos/colores por hoja
+  const HOJA_COLORES = {
+    'SAN PEDRO': { color: '#6366f1', emoji: '🇭🇳' },
+    'TEGUS':     { color: '#0ea5e9', emoji: '🏙️' },
+    'NICA':      { color: '#10b981', emoji: '🇳🇮' },
+  };
+
+  // ── Drag & Drop ──
+  dropZone.addEventListener('click', (e) => {
+    if (e.target === btnSeleccionar || btnSeleccionar.contains(e.target)) {
+      fileInput.click();
+    }
+  });
+  btnSeleccionar.addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
+
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const f = e.dataTransfer.files[0];
+    if (f) procesarArchivo(f);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) procesarArchivo(fileInput.files[0]);
+  });
+
+  btnCambiar.addEventListener('click', () => {
+    workbook = null; hojaActiva = null; filasTodas = [];
+    archivoInfo.hidden = true;
+    dropZone.hidden = false;
+    hojasTabs.hidden = true;
+    resumenGrid.hidden = true;
+    buscadorWrap.hidden = true;
+    tablaWrap.hidden = true;
+    fileInput.value = '';
+    hojasTabs.innerHTML = '';
+    resumenGrid.innerHTML = '';
+    tablaHead.innerHTML = '';
+    tablaBody.innerHTML = '';
+  });
+
+  // ── Procesar archivo ──
+  function procesarArchivo(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        workbook = XLSX.read(e.target.result, { type: 'array' });
+        archivoNombre.textContent = file.name;
+        dropZone.hidden = true;
+        archivoInfo.hidden = false;
+        construirHojasTabs();
+        const primeraHoja = workbook.SheetNames[0];
+        cargarHoja(primeraHoja);
+      } catch (err) {
+        alert('No se pudo leer el archivo. Verifica que sea un Excel válido.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // ── Pestañas de hojas ──
+  function construirHojasTabs() {
+    hojasTabs.innerHTML = '';
+    workbook.SheetNames.forEach(nombre => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'excel-hoja-tab';
+      btn.dataset.hoja = nombre;
+      const cfg = HOJA_COLORES[nombre.toUpperCase()] || { color: 'var(--primary)', emoji: '📋' };
+      btn.innerHTML = `<span style="font-size:1.1rem">${cfg.emoji}</span> ${nombre}`;
+      btn.addEventListener('click', () => cargarHoja(nombre));
+      hojasTabs.appendChild(btn);
+    });
+    hojasTabs.hidden = false;
+  }
+
+  // ── Cargar hoja ──
+  function cargarHoja(nombreHoja) {
+    hojaActiva = nombreHoja;
+    // Marcar tab activo
+    hojasTabs.querySelectorAll('.excel-hoja-tab').forEach(b => {
+      b.classList.toggle('activa', b.dataset.hoja === nombreHoja);
+    });
+
+    const ws = workbook.Sheets[nombreHoja];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    if (!data || data.length < 2) { tablaBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary)">Sin datos en esta hoja.</td></tr>'; return; }
+
+    const encabezados = data[0];
+    const filas = data.slice(1).filter(r => r.some(v => v !== ''));
+    filasTodas = filas;
+
+    // Detectar índices clave
+    const idx = {
+      sku:   buscarIdx(encabezados, ['item id','codigo','sku','code']),
+      desc:  buscarIdx(encabezados, ['description for sales','descripcion','nombre','description','name']),
+      qty:   buscarIdx(encabezados, ['qty on hand','existencia','cantidad','qty','stock']),
+      costo: buscarIdx(encabezados, ['last unit cost','costo','cost']),
+      precio:buscarIdx(encabezados, ['price level 1','precio','price']),
+    };
+
+    // Resumen
+    construirResumen(filas, idx, nombreHoja);
+
+    // Tabla
+    construirTabla(encabezados, filas, idx);
+
+    resumenGrid.hidden = false;
+    buscadorWrap.hidden = false;
+    tablaWrap.hidden = false;
+
+    actualizarContador(filas.length, filas.length);
+  }
+
+  function buscarIdx(encabezados, posibles) {
+    const e = encabezados.map(h => String(h).toLowerCase().trim());
+    for (const p of posibles) {
+      const i = e.findIndex(h => h.includes(p));
+      if (i !== -1) return i;
+    }
+    return -1;
+  }
+
+  // ── Resumen ──
+  function construirResumen(filas, idx, hoja) {
+    const totalProductos = filas.length;
+    const totalUnidades  = filas.reduce((s, r) => s + (parseFloat(r[idx.qty]) || 0), 0);
+    const totalValor     = filas.reduce((s, r) => {
+      const qty   = parseFloat(r[idx.qty])   || 0;
+      const costo = parseFloat(r[idx.costo]) || 0;
+      return s + qty * costo;
+    }, 0);
+    const cfg = HOJA_COLORES[hoja.toUpperCase()] || { color: 'var(--primary)', emoji: '📋' };
+
+    resumenGrid.innerHTML = `
+      <div class="excel-res-card" style="--card-accent:${cfg.color}">
+        <span class="excel-res-label">Sucursal</span>
+        <strong class="excel-res-valor">${cfg.emoji} ${hoja}</strong>
+      </div>
+      <div class="excel-res-card" style="--card-accent:#f59e0b">
+        <span class="excel-res-label">SKUs / Productos</span>
+        <strong class="excel-res-valor">${totalProductos.toLocaleString('es-MX')}</strong>
+      </div>
+      <div class="excel-res-card" style="--card-accent:#10b981">
+        <span class="excel-res-label">Unidades en Stock</span>
+        <strong class="excel-res-valor">${totalUnidades.toLocaleString('es-MX', {maximumFractionDigits:0})}</strong>
+      </div>
+      <div class="excel-res-card" style="--card-accent:#8b5cf6">
+        <span class="excel-res-label">Valor Total Inventario</span>
+        <strong class="excel-res-valor excel-res-moneda">${totalValor.toLocaleString('es-MX', {style:'currency',currency:'HNL',minimumFractionDigits:0})}</strong>
+      </div>
+    `;
+  }
+
+  // ── Tabla ──
+  function construirTabla(encabezados, filas, idx) {
+    // Encabezados
+    const tr = document.createElement('tr');
+    encabezados.forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      tr.appendChild(th);
+    });
+    tablaHead.innerHTML = '';
+    tablaHead.appendChild(tr);
+
+    // Cuerpo
+    renderFilas(filas, encabezados, idx);
+  }
+
+  function renderFilas(filas, encabezados, idx) {
+    tablaBody.innerHTML = '';
+    if (!filas.length) {
+      tablaBody.innerHTML = `<tr><td colspan="${(encabezados||[]).length||5}" style="text-align:center;padding:32px;color:var(--text-secondary)">No se encontraron resultados.</td></tr>`;
+      return;
+    }
+
+    // Calcular encabezados actuales desde la cabeza
+    const enc = Array.from(tablaHead.querySelectorAll('th')).map(th => th.textContent);
+
+    filas.forEach((fila, i) => {
+      const tr = document.createElement('tr');
+      // Highlight stock bajo (< 3 y > 0)
+      const qty = parseFloat(fila[idx.qty]);
+      if (!isNaN(qty) && qty > 0 && qty < 3) tr.classList.add('excel-fila-bajo');
+      if (!isNaN(qty) && qty === 0) tr.classList.add('excel-fila-cero');
+
+      fila.forEach((celda, j) => {
+        const td = document.createElement('td');
+        td.dataset.label = enc[j] || '';
+        // Formatear números de cantidades y precios
+        if ((j === idx.qty || j === idx.costo || j === idx.precio) && celda !== '') {
+          const num = parseFloat(celda);
+          if (!isNaN(num)) {
+            if (j === idx.qty) {
+              td.textContent = num.toLocaleString('es-MX', {maximumFractionDigits:2});
+              td.style.fontWeight = '600';
+              td.style.color = num === 0 ? 'var(--danger,#ef4444)' : num < 3 ? '#f59e0b' : 'var(--success,#10b981)';
+            } else {
+              td.textContent = num.toLocaleString('es-MX', {style:'currency', currency:'HNL', minimumFractionDigits:2});
+            }
+          } else { td.textContent = celda; }
+        } else {
+          td.textContent = celda;
+        }
+        tr.appendChild(td);
+      });
+      tablaBody.appendChild(tr);
+    });
+  }
+
+  // ── Buscador ──
+  buscador.addEventListener('input', () => {
+    const q = buscador.value.toLowerCase().trim();
+    const ws = workbook.Sheets[hojaActiva];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    const encabezados = data[0];
+    const idx = {
+      sku:   buscarIdx(encabezados, ['item id','codigo','sku','code']),
+      desc:  buscarIdx(encabezados, ['description for sales','descripcion','nombre','description','name']),
+      qty:   buscarIdx(encabezados, ['qty on hand','existencia','cantidad','qty','stock']),
+      costo: buscarIdx(encabezados, ['last unit cost','costo','cost']),
+      precio:buscarIdx(encabezados, ['price level 1','precio','price']),
+    };
+    const filtradas = q
+      ? filasTodas.filter(r => r.some(v => String(v).toLowerCase().includes(q)))
+      : filasTodas;
+    renderFilas(filtradas, encabezados, idx);
+    actualizarContador(filtradas.length, filasTodas.length);
+  });
+
+  function actualizarContador(mostrados, total) {
+    contador.textContent = mostrados === total
+      ? `${total.toLocaleString('es-MX')} productos`
+      : `${mostrados.toLocaleString('es-MX')} de ${total.toLocaleString('es-MX')}`;
+  }
+
 })();
 </script>
 {% endblock %}
